@@ -1,0 +1,51 @@
+# cloud-boot/init — PID-1 Go binary embedded in the bootstrap initramfs.
+#
+# Native-host tasks (test, vet) plus a cross-compile target that produces
+# the Linux ELF binary the [../uki](../uki) toolchain bakes into a UKI.
+
+version: '3'
+
+vars:
+  GO: '{{.GO | default "go"}}'
+  ARCH: '{{.ARCH | default "amd64"}}'
+  OUT: '{{.OUT | default "bin/cloud-boot-init"}}'
+
+tasks:
+
+  default:
+    desc: Build the init binary for the host (useful for `go test` only)
+    cmds:
+      - '{{.GO}} build ./cmd/cloud-boot-init'
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - '{{.GO}} mod tidy'
+
+  vet:
+    desc: go vet (host + linux build tags)
+    cmds:
+      - '{{.GO}} vet ./...'
+      - GOOS=linux {{.GO}} vet ./...
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - '{{.GO}} test ./...'
+
+  cross:
+    desc: 'Cross-compile cloud-boot-init for linux/$ARCH. Output: $OUT.'
+    cmds:
+      - mkdir -p "$(dirname '{{.OUT}}')"
+      - >-
+        CGO_ENABLED=0 GOOS=linux GOARCH={{.ARCH}}
+        {{.GO}} build
+        -trimpath
+        -ldflags "-s -w -extldflags '-static'"
+        -tags netgo,osusergo
+        -o "{{.OUT}}"
+        ./cmd/cloud-boot-init
+
+  clean:
+    cmds:
+      - rm -rf bin

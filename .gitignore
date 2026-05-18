@@ -1,0 +1,10 @@
+bin/
+*.iso
+*.img
+*.efi
+.ovmf_vars.fd
+.task/
+*.test
+coverage.out
+coverage.html
+cover.out
