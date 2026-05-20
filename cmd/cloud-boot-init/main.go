@@ -467,14 +467,64 @@ func buildMenuConfig(p *plan.Plan, cmd map[string]string, arch string) (menu.Con
 	}, nil
 }
 
-// openConsole returns the pair of streams to use for the menu UI. It tries
-// /dev/console first (so output appears even when stdio has been redirected
-// by the kernel), and falls back to os.Stdin/os.Stderr otherwise.
+// openConsole returns the pair of streams to use for the menu UI.
+//
+// Output goes to /dev/console (the kernel-selected console — fans
+// out to every `console=` listed on the cmdline, including the
+// virtio-gpu framebuffer when running under vfkit's --gui).
+//
+// Input is trickier. On serial-only setups (QEMU + console=ttyAMA0,
+// vfkit headless + console=hvc0) the keyboard side of /dev/console
+// works — uart_console reads RX bytes directly. But under a VT
+// setup (vfkit + --gui + cmdline `console=hvc0 console=tty0`), the
+// kernel routes virtio-input keystrokes to whichever VT is the
+// active foreground tty (tty1 by default), NOT to /dev/console
+// itself. A read on /dev/console then blocks forever even though
+// the kernel is happily delivering events to /dev/tty1.
+//
+// To make the menu interactive in both worlds we read from
+// /dev/console AND /dev/tty1 in parallel and let the first source
+// to produce input win. Each source not actually receiving data
+// just blocks its goroutine harmlessly until PID 1 reboots.
 func openConsole() (io.Reader, io.Writer) {
+	var sources []io.ReadCloser
+	var writer io.Writer = os.Stderr
 	if f, err := os.OpenFile("/dev/console", os.O_RDWR, 0); err == nil {
-		return f, f
+		sources = append(sources, f)
+		writer = f
 	}
-	return os.Stdin, os.Stderr
+	if f, err := os.OpenFile("/dev/tty1", os.O_RDWR, 0); err == nil {
+		sources = append(sources, f)
+		// Keep /dev/console as the writer if we got it — its
+		// output reaches more consumers than tty1 alone. If we
+		// only got tty1, fall through to using it for output.
+		if writer == os.Stderr {
+			writer = f
+		}
+	}
+	switch len(sources) {
+	case 0:
+		return os.Stdin, os.Stderr
+	case 1:
+		return sources[0], writer
+	default:
+		return mergeReaders(sources), writer
+	}
+}
+
+// mergeReaders fans every byte from any of `srcs` into a single
+// returned reader. Each source gets a goroutine that io.Copy's
+// into a shared pipe writer; the returned reader is the pipe
+// reader. Closing isn't wired up — callers (the menu code) keep
+// the reader for the lifetime of the process.
+func mergeReaders(srcs []io.ReadCloser) io.Reader {
+	pr, pw := io.Pipe()
+	for _, src := range srcs {
+		go func(s io.ReadCloser) {
+			_, _ = io.Copy(pw, s)
+		}(src)
+	}
+	return pr
 }
 
 // startLLDP kicks off LLDP advertise + listen in background goroutines and
