@@ -39,16 +39,18 @@ import (
 )
 
 // rebootSink is the menu-then-reboot replacement for kexec.Load +
-// kexec.Boot. The full implementation comes in incremental commits;
-// for now this scaffolding just logs the intent so the dispatch
-// branch in main.go can be exercised before the heavy lifting
-// (ESP discovery, efivarfs writes) lands.
+// kexec.Boot. Built incrementally — current scope: find + mount the
+// ESP. Subsequent commits copy kernel+initrd, write Boot####, and
+// trigger reboot(2).
 func rebootSink(targetName, kPath, iPath, kArgs string) error {
 	log.Printf("reboot-sink: target=%s kernel=%s initrd=%s", targetName, kPath, iPath)
 	log.Printf("reboot-sink: cmdline=%q", kArgs)
-	log.Printf("reboot-sink: TODO — copy to ESP, write Boot0001, reboot(2)")
-	// Hang here for now so the rest of the test harness still sees
-	// "menu reached its sink without exploding". Subsequent commits
-	// replace this with the real ESP+NVRAM+reboot work.
-	return fmt.Errorf("reboot-sink not yet implemented past the scaffolding (see memory:uki-menu-then-reboot)")
+
+	esp, err := findAndMountESP()
+	if err != nil {
+		return fmt.Errorf("esp: %w", err)
+	}
+	log.Printf("reboot-sink: ESP mounted at %s", esp)
+	log.Printf("reboot-sink: TODO — copy kernel/initrd, write Boot0001, reboot(2)")
+	return fmt.Errorf("reboot-sink not yet implemented past ESP discovery (see memory:uki-menu-then-reboot)")
 }
