@@ -215,12 +215,30 @@ func run() error {
 		kArgs = v
 	}
 
-	log.Printf("kexec load (kernel=%s initrd=%s cmdline=%q)", kPath, iPath, kArgs)
-	if err := kexec.Load(kPath, iPath, kArgs); err != nil {
-		return fmt.Errorf("kexec load: %w", err)
+	// Boot sink — kexec is the default (works under QEMU/OVMF +
+	// any hardware UEFI that doesn't trap the EL1 jump). On Apple
+	// Virtualization.framework kexec_file_load hangs the VM
+	// silently; in that environment the operator sets
+	// `cloudboot.exit=reboot` in the cmdline (or bakes it into the
+	// UKI's embedded cmdline via uki/Taskfile.yaml) to switch us
+	// over to the menu-then-reboot path: write the chosen kernel
+	// onto the FAT ESP, set Boot0001/BootOrder, reboot(2). The
+	// firmware then loads the chosen kernel directly on the next
+	// boot via standard LoadImage+StartImage, which VZ supports.
+	// See memory:uki-menu-then-reboot.
+	switch cmd["cloudboot.exit"] {
+	case "reboot":
+		return rebootSink(target.Name, kPath, iPath, kArgs)
+	case "", "kexec":
+		log.Printf("kexec load (kernel=%s initrd=%s cmdline=%q)", kPath, iPath, kArgs)
+		if err := kexec.Load(kPath, iPath, kArgs); err != nil {
+			return fmt.Errorf("kexec load: %w", err)
+		}
+		log.Printf("kexec boot")
+		return kexec.Boot()
+	default:
+		return fmt.Errorf("unknown cloudboot.exit=%q (want \"kexec\" or \"reboot\")", cmd["cloudboot.exit"])
 	}
-	log.Printf("kexec boot")
-	return kexec.Boot()
 }
 
 func newClient(cmd map[string]string) *oci.Client {
