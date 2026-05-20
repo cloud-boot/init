@@ -7,15 +7,20 @@
 // Same syntax as the Linux kernel's `root=` cmdline arg:
 //
 //	/dev/vda1            literal path → passes through unchanged
-//	LABEL=foo            ext2/3/4 fs label (s_volume_name, 16 bytes)
-//	UUID=8400-…          ext2/3/4 fs UUID (s_uuid)
+//	LABEL=foo            fs label across ext{2,3,4} / xfs / btrfs
+//	UUID=8400-…          fs UUID  across ext{2,3,4} / xfs / btrfs
 //	PARTLABEL=foo        GPT partition name (UTF-16LE, 36 chars max)
 //	PARTUUID=8400-…      GPT partition unique GUID
 //
-// LABEL/UUID look at the ext superblock at offset 1024 of each
-// /proc/partitions entry; PARTLABEL/PARTUUID enumerate the GPT entry
-// array on every whole-disk block device. We deliberately don't shell
-// out to blkid — cloud-boot's initramfs ships without util-linux.
+// LABEL/UUID try each filesystem-specific superblock layout in turn:
+//
+//	ext{2,3,4}  offset 1024, magic 0xEF53 at sb+56, uuid at sb+104, label at sb+120
+//	xfs         offset 0,    magic "XFSB"  at sb+0,  uuid at sb+32,  label at sb+108
+//	btrfs       offset 65536,magic "_BHRfS_M" at sb+64,uuid at sb+32,label at sb+299
+//
+// PARTLABEL/PARTUUID enumerate the GPT entry array on every whole-disk
+// block device — fs-agnostic. We deliberately don't shell out to blkid;
+// cloud-boot's initramfs ships without util-linux.
 
 package main
 
@@ -41,11 +46,11 @@ func resolveBlockDevice(spec string) (string, error) {
 		return spec, nil
 	}
 	if v, ok := strings.CutPrefix(spec, "LABEL="); ok {
-		return findExt(func(s *extSuper) bool { return s.label() == v })
+		return findFS(func(s *fsLabel) bool { return s.label == v })
 	}
 	if v, ok := strings.CutPrefix(spec, "UUID="); ok {
 		v = strings.ToLower(v)
-		return findExt(func(s *extSuper) bool { return strings.ToLower(s.uuid()) == v })
+		return findFS(func(s *fsLabel) bool { return strings.ToLower(s.uuid) == v })
 	}
 	if v, ok := strings.CutPrefix(spec, "PARTLABEL="); ok {
 		return findGPT(func(e *gptEntry) bool { return e.name() == v })
@@ -57,79 +62,34 @@ func resolveBlockDevice(spec string) (string, error) {
 	return "", fmt.Errorf("unsupported device spec %q (want /dev/…, LABEL=…, UUID=…, PARTLABEL=…, or PARTUUID=…)", spec)
 }
 
-// ─── ext fs (LABEL / UUID) ────────────────────────────────────────────
+// ─── fs-agnostic LABEL / UUID lookup ──────────────────────────────────
+//
+// findFS scans every entry in /proc/partitions, calls readFSLabel
+// (cross-platform, lives in disk_resolve.go) which probes ext{2,3,4} /
+// xfs / btrfs in turn, and returns the first device whose normalised
+// {label, uuid} matches.
 
-const (
-	extSuperOff   = 1024
-	extMagicAt    = 56 // bytes into the superblock
-	extUUIDAt     = 104
-	extLabelAt    = 120
-	extMagicValue = 0xEF53
-)
-
-// extSuper carries just the four fields we read out of the superblock.
-type extSuper struct {
-	uuidBytes  [16]byte
-	labelBytes [16]byte
-}
-
-func (s *extSuper) label() string {
-	return string(bytes.TrimRight(s.labelBytes[:], "\x00"))
-}
-
-func (s *extSuper) uuid() string {
-	b := s.uuidBytes[:]
-	return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-		b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15])
-}
-
-// readExtSuper opens path, seeks to +1024 and reads the bytes that
-// hold the magic / uuid / label. Returns (nil, nil) when the magic
-// doesn't match (so the caller can skip the device silently).
-func readExtSuper(path string) (*extSuper, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var buf [256]byte
-	if _, err := f.Seek(extSuperOff, io.SeekStart); err != nil {
-		return nil, err
-	}
-	if _, err := io.ReadFull(f, buf[:]); err != nil {
-		return nil, err
-	}
-	if binary.LittleEndian.Uint16(buf[extMagicAt:extMagicAt+2]) != extMagicValue {
-		return nil, nil
-	}
-	s := &extSuper{}
-	copy(s.uuidBytes[:], buf[extUUIDAt:extUUIDAt+16])
-	copy(s.labelBytes[:], buf[extLabelAt:extLabelAt+16])
-	return s, nil
-}
-
-func findExt(match func(*extSuper) bool) (string, error) {
+func findFS(match func(*fsLabel) bool) (string, error) {
 	parts, err := listBlockDevs()
 	if err != nil {
 		return "", err
 	}
-	// Build a diagnostic trail of what we saw so the error tells the
-	// user something actionable when no match is found ("the kernel
-	// can see X, Y, Z; X has no ext4 magic; Y has label='foo'") —
-	// way better than a bare "not found" on a serial console.
+	// Diagnostic trail — when no match is found the error tells the
+	// user something actionable ("the kernel sees X, Y, Z; X has no
+	// recognisable superblock; Y is xfs with label='foo'") instead of
+	// a bare "not found" on a serial console.
 	var seen []string
 	for _, p := range parts {
-		s, err := readExtSuper(p)
+		s, err := readFSLabel(p)
 		if err != nil {
 			seen = append(seen, fmt.Sprintf("%s=<open-err:%v>", p, err))
 			continue
 		}
 		if s == nil {
-			seen = append(seen, fmt.Sprintf("%s=<not-ext>", p))
+			seen = append(seen, fmt.Sprintf("%s=<unknown-fs>", p))
 			continue
 		}
-		seen = append(seen, fmt.Sprintf("%s=ext{label=%q uuid=%s}", p, s.label(), s.uuid()))
+		seen = append(seen, fmt.Sprintf("%s=%s{label=%q uuid=%s}", p, s.fsType, s.label, s.uuid))
 		if match(s) {
 			return p, nil
 		}

@@ -42,9 +42,18 @@ func pickNewestFile(glob string) (string, error) {
 func pairInitrdWithKernel(kernelPath string, exists func(string) bool) (string, error) {
 	dir := filepath.Dir(kernelPath)
 	base := filepath.Base(kernelPath)
-	suffix := strings.TrimPrefix(base, "vmlinuz-")
-	if suffix == base {
-		return "", fmt.Errorf("kernel %s does not match vmlinuz-* convention", kernelPath)
+	// Strip whichever prefix the kernel filename starts with — vmlinuz-
+	// or Image- (openSUSE arm64). Anything else is a naming convention
+	// we don't yet handle; return an error so the caller falls back
+	// to an explicit Disk.Initrd override.
+	var suffix string
+	switch {
+	case strings.HasPrefix(base, "vmlinuz-"):
+		suffix = strings.TrimPrefix(base, "vmlinuz-")
+	case strings.HasPrefix(base, "Image-"):
+		suffix = strings.TrimPrefix(base, "Image-")
+	default:
+		return "", fmt.Errorf("kernel %s matches neither vmlinuz-* nor Image-* convention", kernelPath)
 	}
 	candidates := []string{
 		filepath.Join(dir, "initrd.img-"+suffix),

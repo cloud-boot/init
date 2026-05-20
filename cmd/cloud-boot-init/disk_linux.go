@@ -120,13 +120,35 @@ func runDisk(p diskParams) error {
 	return kexec.Boot()
 }
 
-// resolveDiskKernel picks the kernel path on the mounted disk: either the
-// explicit override, or the newest file matching /mnt/boot/vmlinuz-*.
+// resolveDiskKernel picks the kernel path on the mounted disk: either
+// an explicit override, or the newest file matching one of:
+//
+//	/boot/vmlinuz-*     Debian / Ubuntu / Fedora amd64 / Alpine
+//	/boot/Image-*       openSUSE arm64 (kernel named "Image-…-default")
+//	/vmlinuz-*          when the mount IS the /boot partition (Fedora)
+//	/Image-*            same, arm64 distros with a dedicated /boot
+//
+// The four globs are tried in order; first non-empty match wins.
+// Cloud-boot-init's mount step always succeeds before we get here, so
+// every glob targets the actual mount point — we just don't yet know
+// whether the user gave us a rootfs (kernel under /boot) or a
+// dedicated /boot partition (kernel at the root of the mount).
 func resolveDiskKernel(override string) (string, error) {
 	if override != "" {
 		return mountAbs(override), nil
 	}
-	return pickNewestFile(filepath.Join(diskMount, "boot", "vmlinuz-*"))
+	for _, glob := range []string{
+		filepath.Join(diskMount, "boot", "vmlinuz-*"),
+		filepath.Join(diskMount, "boot", "Image-*"),
+		filepath.Join(diskMount, "vmlinuz-*"),
+		filepath.Join(diskMount, "Image-*"),
+	} {
+		path, err := pickNewestFile(glob)
+		if err == nil && path != "" {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("no kernel found at %s/{boot/,}{vmlinuz-*,Image-*}", diskMount)
 }
 
 // resolveDiskInitrd mirrors resolveDiskKernel for the initrd, falling back
