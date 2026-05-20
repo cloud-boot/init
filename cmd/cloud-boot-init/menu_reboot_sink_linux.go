@@ -39,6 +39,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/sys/unix"
 )
 
 // rebootSink is the menu-then-reboot replacement for kexec.Load +
@@ -86,8 +88,35 @@ func rebootSink(targetName, kPath, iPath, kArgs string) error {
 	}
 	log.Printf("reboot-sink: BootOrder prefixed with 0001")
 
-	log.Printf("reboot-sink: TODO — reboot(2)")
-	return fmt.Errorf("reboot-sink not yet implemented past NVRAM writes (see memory:uki-menu-then-reboot)")
+	// Flush + unmount cleanly before triggering reboot. If we skip
+	// sync the FAT writes might still be in the page cache when the
+	// VM resets — the firmware on next boot reads a half-written
+	// ESP and can't find our staged kernel. sync() + unmount() is
+	// the cheapest belt-and-braces.
+	unix.Sync()
+	if err := unix.Unmount(esp, 0); err != nil {
+		// Non-fatal — the FAT writes already flushed via Sync;
+		// unmount might fail if /esp is busy (shouldn't be, but
+		// no need to abort the reboot over it).
+		log.Printf("reboot-sink: umount %s: %v (continuing)", esp, err)
+	}
+
+	// LINUX_REBOOT_CMD_RESTART — the standard "warm reboot via
+	// firmware". On vfkit / Apple VZ this returns control to the
+	// virtualisation hypervisor, which restarts the VM; the EFI
+	// firmware then honours the new BootOrder and loads
+	// \EFI\Linux\<target>-vmlinuz.efi via standard LoadImage +
+	// StartImage. No kexec anywhere on this path.
+	log.Printf("reboot-sink: reboot(2)")
+	if err := unix.Reboot(unix.LINUX_REBOOT_CMD_RESTART); err != nil {
+		return fmt.Errorf("reboot: %w", err)
+	}
+	// Reboot doesn't return on success; if we somehow get here the
+	// firmware didn't take us up on it. Spin so init doesn't exit
+	// (which would oops the kernel as PID 1 vanishes).
+	for {
+		unix.Pause()
+	}
 }
 
 // stageTargetOnESP copies the resolved kernel and initrd into
