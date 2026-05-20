@@ -88,6 +88,8 @@ func resolveKind(mediaType, title string) string {
 		return "modloop"
 	case oci.MediaTypeApkovl:
 		return "apkovl"
+	case oci.MediaTypeSquashfs:
+		return "squashfs"
 	case oci.MediaTypeCmdline:
 		return "cmdline"
 	}
@@ -102,6 +104,8 @@ func resolveKind(mediaType, title string) string {
 		return "modloop"
 	case "apkovl":
 		return "apkovl"
+	case "squashfs", "filesystem.squashfs":
+		return "squashfs"
 	case "cmdline":
 		return "cmdline"
 	}

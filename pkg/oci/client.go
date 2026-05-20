@@ -5,12 +5,15 @@ package oci
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +22,7 @@ import (
 
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/net/http2"
 )
 
 // Custom artifact media types for kernel/initrd/cmdline/modules/plan blobs.
@@ -41,7 +45,15 @@ const (
 	// etc/apk/world. The overlay turns a barebones netboot kernel into
 	// a fully-functional Alpine system at first boot.
 	MediaTypeApkovl = "application/vnd.cloud-boot.apkovl.v1+tar.gz"
-	MediaTypePlan   = "application/vnd.cloud-boot.plan.v1+hcl"
+	// MediaTypeSquashfs carries Debian / Ubuntu live's
+	// `filesystem.squashfs` (or any distro equivalent — Kali, Tails,
+	// Mint use the same shape). cloud-boot-init exposes it as
+	// `fetch=<oci-blob-url>` on the target kernel's cmdline so
+	// live-boot's initrd (Debian's `live-boot` package) downloads it
+	// at switch_root time and loop-mounts it as the read-only rootfs.
+	// Squashfs stays in the registry — no client-side download.
+	MediaTypeSquashfs = "application/vnd.cloud-boot.squashfs.v1"
+	MediaTypePlan     = "application/vnd.cloud-boot.plan.v1+hcl"
 )
 
 // Ref describes a fully-parsed image reference.
@@ -95,9 +107,36 @@ type Client struct {
 
 // NewClient builds a client with sensible defaults. Auth is read from env
 // REGISTRY_USERNAME / REGISTRY_PASSWORD if not set explicitly.
+//
+// HTTP/2 behaviour:
+//   - https:// targets negotiate HTTP/2 via ALPN automatically (Go's
+//     default Transport already does this when h2 is offered by the
+//     peer). No code change required for HTTPS registries.
+//   - http:// (plaintext) targets default to HTTP/1.1. Set the env
+//     var REGISTRY_HTTP2_CLEARTEXT=1 to opt into HTTP/2 over plaintext
+//     (h2c, RFC 7540 §3.4). This is what local cloud-boot test
+//     registries on 127.0.0.1:5000 typically run on; Docker
+//     Distribution v3.0+ accepts h2c connections.
+//
+// The h2c transport keeps a tiny manual dialer that just dials TCP
+// and returns the conn unwrapped — http2 then runs its own framing
+// directly on the TCP stream (no TLS, no upgrade dance).
 func NewClient() *Client {
+	httpClient := &http.Client{Timeout: 60 * time.Second}
+	if os.Getenv("REGISTRY_HTTP2_CLEARTEXT") == "1" {
+		httpClient.Transport = &http2.Transport{
+			AllowHTTP: true,
+			// http2 normally only speaks to https endpoints; this
+			// dialer lets it use the plaintext TCP socket directly
+			// for http:// URLs.
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
+	}
 	return &Client{
-		HTTP:     &http.Client{Timeout: 60 * time.Second},
+		HTTP:     httpClient,
 		Username: os.Getenv("REGISTRY_USERNAME"),
 		Password: os.Getenv("REGISTRY_PASSWORD"),
 		tokens:   map[string]string{},

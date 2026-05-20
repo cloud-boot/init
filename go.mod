@@ -10,6 +10,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/vishvananda/netlink v1.3.0
 	github.com/zclconf/go-cty v1.13.0
+	golang.org/x/net v0.39.0
 	golang.org/x/sys v0.44.0
 )
 
@@ -29,7 +30,6 @@ require (
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/tools v0.32.0 // indirect

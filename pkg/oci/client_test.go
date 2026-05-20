@@ -14,6 +14,8 @@ import (
 
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 // withSingleEndpoint pins resolveEndpoints to a single host for the duration
@@ -1233,6 +1235,73 @@ func TestDo_RewriteHostError(t *testing.T) {
 	req.GetBody = func() (io.ReadCloser, error) { return nil, fmt.Errorf("rewind boom") }
 	if _, err := NewClient().do(&Ref{Host: u.Host}, req); err == nil {
 		t.Fatal("expected rewriteHost error")
+	}
+}
+
+// TestNewClient_H2C verifies that NewClient builds an HTTP/2 cleartext
+// (h2c) transport when REGISTRY_HTTP2_CLEARTEXT=1, and that the
+// resulting client actually negotiates HTTP/2 over a plaintext
+// listener that speaks h2 prior knowledge.
+func TestNewClient_H2C(t *testing.T) {
+	// Stand up a plaintext HTTP/2 server (httptest.Server is HTTP/1
+	// only — we need a manual http2.Server tied to net.Listen).
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	h2s := &http2.Server{}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Saw-Proto", r.Proto)
+		_, _ = io.WriteString(w, "ok")
+	})
+	// h2c.NewHandler intercepts the connection-preface bytes on the
+	// plaintext listener and hands the conn to http2 — which is what
+	// our REGISTRY_HTTP2_CLEARTEXT=1 client opens (h2 prior knowledge,
+	// no Upgrade dance).
+	srv := &http.Server{Handler: h2c.NewHandler(handler, h2s)}
+	go func() { _ = srv.Serve(ln) }()
+	defer srv.Close()
+
+	t.Setenv("REGISTRY_HTTP2_CLEARTEXT", "1")
+	c := NewClient()
+
+	addr := "http://" + ln.Addr().String() + "/ping"
+	req, _ := http.NewRequest("GET", addr, nil)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		t.Fatalf("h2c GET failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.Proto != "HTTP/2.0" {
+		t.Fatalf("expected HTTP/2.0, got %q", resp.Proto)
+	}
+	if resp.Header.Get("X-Saw-Proto") != "HTTP/2.0" {
+		t.Fatalf("server saw %q, expected HTTP/2.0", resp.Header.Get("X-Saw-Proto"))
+	}
+}
+
+// TestNewClient_NoH2C verifies the default (no REGISTRY_HTTP2_CLEARTEXT)
+// stays on HTTP/1.1 against a plaintext server, so the h2c opt-in
+// doesn't quietly alter behaviour for unrelated cloud-boot deployments.
+func TestNewClient_NoH2C(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Saw-Proto", r.Proto)
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer srv.Close()
+
+	t.Setenv("REGISTRY_HTTP2_CLEARTEXT", "")
+	c := NewClient()
+
+	req, _ := http.NewRequest("GET", srv.URL+"/ping", nil)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if !strings.HasPrefix(resp.Proto, "HTTP/1") {
+		t.Fatalf("expected HTTP/1.x without h2c opt-in, got %q", resp.Proto)
 	}
 }
 

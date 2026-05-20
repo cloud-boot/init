@@ -564,13 +564,14 @@ func materialize(c *oci.Client, t *plan.Target, insecure bool, netCfg *netconf.C
 	// baseline, then role-specific refs override the matching layer.
 	// pick(cur, candidate) keeps `candidate` when non-empty so later
 	// iterations win.
-	var k, i, m, mlURL, ovPath, c2 string
+	var k, i, m, mlURL, ovPath, sqURL, c2 string
 	merge := func(r *pulled) {
 		k = pick(k, r.kernel)
 		i = pick(i, r.initrd)
 		m = pick(m, r.modules)
 		mlURL = pick(mlURL, r.modloopURL)
 		ovPath = pick(ovPath, r.apkovlPath)
+		sqURL = pick(sqURL, r.squashfsURL)
 		c2 = pick(c2, r.cmdline)
 	}
 	if t.Index != "" {
@@ -651,6 +652,14 @@ func materialize(c *oci.Client, t *plan.Target, insecure bool, netCfg *netconf.C
 	}
 	if apkovlCpio != "" && !strings.Contains(cmdline, "apkovl=") {
 		cmdline = appendSpaced(cmdline, "apkovl=/apkovl.tar.gz")
+	}
+	// Debian / Ubuntu live's `live-boot` initrd honours `fetch=<url>`
+	// to pull a remote filesystem.squashfs at switch_root time. Same
+	// URL-pointer pattern as modloop: avoids embedding a multi-
+	// hundred-MB blob into the initramfs we kexec into. Inject only
+	// when the plan didn't already set boot= and fetch= explicitly.
+	if sqURL != "" && !strings.Contains(cmdline, "fetch=") {
+		cmdline = appendSpaced(cmdline, "boot=live fetch="+sqURL)
 	}
 	return k, final, cmdline, nil
 }
@@ -849,6 +858,13 @@ type pulled struct {
 	// `/apkovl.tar.gz` via a cpio.gz concat sidesteps the whole mess.
 	// Apkovls are small (KB-scale), so the initrd bloat is negligible.
 	apkovlPath string
+	// squashfsURL is the OCI blob URL we hand to Debian/Ubuntu live's
+	// `live-boot` initrd as `fetch=<url>`. Same shape as modloopURL:
+	// the squashfs is multi-hundred-MB so we URL-serve it from the
+	// registry instead of embedding into the initramfs that the
+	// kernel kexecs into. live-boot's busybox wget happily follows
+	// content-addressed `sha256:…` paths.
+	squashfsURL string
 }
 
 // pullArtifact resolves a (possibly multi-arch) OCI ref to a single
@@ -883,7 +899,7 @@ func pullArtifact(c *oci.Client, refStr string, insecure bool) (*pulled, error) 
 	}
 
 	type layerResult struct {
-		kind, path, cmdline, modloopURL string
+		kind, path, cmdline, modloopURL, squashfsURL string
 	}
 	results := make([]layerResult, len(m.Layers))
 	errs := make([]error, len(m.Layers))
@@ -927,6 +943,22 @@ func pullArtifact(c *oci.Client, refStr string, insecure bool) (*pulled, error) 
 			}
 			url := fmt.Sprintf("%s://%s/v2/%s/blobs/%s", ref.Scheme, host, ref.Repo, l.Digest)
 			results[i] = layerResult{kind: kind, modloopURL: url}
+			log.Printf("  %s: %s served from %s", kind, humanBytes(l.Size), url)
+			continue
+		}
+		// Squashfs: same URL-pointer pattern as modloop. Debian/
+		// Ubuntu live's busybox wget pulls it at switch_root time
+		// via the `fetch=<url>` cmdline param the live-boot package
+		// honours.
+		if kind == "squashfs" {
+			host := ref.Host
+			if oci.IsSRVHost(host) {
+				if eps, srvErr := oci.ResolveEndpoints(host); srvErr == nil && len(eps) > 0 {
+					host = eps[0].Host
+				}
+			}
+			url := fmt.Sprintf("%s://%s/v2/%s/blobs/%s", ref.Scheme, host, ref.Repo, l.Digest)
+			results[i] = layerResult{kind: kind, squashfsURL: url}
 			log.Printf("  %s: %s served from %s", kind, humanBytes(l.Size), url)
 			continue
 		}
@@ -981,6 +1013,8 @@ func pullArtifact(c *oci.Client, refStr string, insecure bool) (*pulled, error) 
 			out.modloopURL = r.modloopURL
 		case "apkovl":
 			out.apkovlPath = r.path
+		case "squashfs":
+			out.squashfsURL = r.squashfsURL
 		case "cmdline":
 			out.cmdline = r.cmdline
 		}
