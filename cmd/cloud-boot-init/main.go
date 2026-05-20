@@ -24,6 +24,9 @@
 //	cloudboot.menu=0|1            force the interactive boot menu off / on
 //	cloudboot.menu.timeout=<dur>  override the plan's menu.timeout ("5s", "10")
 //	cloudboot.menu.prompt=<text>  override the plan's menu prompt header
+//	cloudboot.keymap=<layout>     load a console keymap before the menu
+//	                              (default "" = kernel's compiled-in US-QWERTY;
+//	                              supported: "fr" for French AZERTY).
 //	cloudboot.cmdline=<text>      override the cmdline passed to the downloaded kernel
 //	cloudboot.insecure=1          allow plain HTTP for the plan reference
 //	cloudboot.lldp=0              disable LLDP listen + transmit
@@ -457,6 +460,18 @@ func buildMenuConfig(p *plan.Plan, cmd map[string]string, arch string) (menu.Con
 	}
 
 	in, out := openConsole()
+	// Apply the operator's chosen keymap (cloudboot.keymap=fr|us|…)
+	// before the menu prompts, so the choices typed by the user
+	// match their keyboard layout. Errors are logged but
+	// non-fatal — we fall back to the kernel's US-QWERTY default,
+	// which still lets the user pick a target with digit keys.
+	if km := cmd["cloudboot.keymap"]; km != "" {
+		if err := loadKeymap(km); err != nil {
+			log.Printf("keymap %q: %v (continuing with kernel default)", km, err)
+		} else {
+			log.Printf("keymap: %s loaded", km)
+		}
+	}
 	// Diagnostic: dump the kernel's input-device table so the
 	// operator can see whether virtio-input was recognised and
 	// which /dev/event* handler the kbd is wired through. This
