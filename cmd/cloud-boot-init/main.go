@@ -457,6 +457,13 @@ func buildMenuConfig(p *plan.Plan, cmd map[string]string, arch string) (menu.Con
 	}
 
 	in, out := openConsole()
+	// Diagnostic: dump the kernel's input-device table so the
+	// operator can see whether virtio-input was recognised and
+	// which /dev/event* handler the kbd is wired through. This
+	// is one-line-per-device, sent to the same writer the menu
+	// will use — i.e. visible both in the GUI window and the
+	// serial log (openConsole MultiWriters them).
+	dumpInputDevices(out)
 	return menu.Config{
 		Out:     out,
 		In:      in,
@@ -469,47 +476,95 @@ func buildMenuConfig(p *plan.Plan, cmd map[string]string, arch string) (menu.Con
 
 // openConsole returns the pair of streams to use for the menu UI.
 //
-// Output goes to /dev/console (the kernel-selected console — fans
-// out to every `console=` listed on the cmdline, including the
-// virtio-gpu framebuffer when running under vfkit's --gui).
+// Linux's /dev/console is the kernel-selected console — the LAST
+// `console=` listed on the cmdline. Under our vfkit GUI setup
+// (cmdline `console=hvc0 console=tty0`) that's tty0/fbcon, so
+// /dev/console-only output is visible in the GUI window but
+// invisible in the virtio-serial logFilePath. To keep headless
+// debugging usable we explicitly also open the serial console
+// (/dev/hvc0 on vfkit, /dev/ttyAMA0 on QEMU arm64) so output
+// fans to both the framebuffer and the serial log.
 //
-// Input is trickier. On serial-only setups (QEMU + console=ttyAMA0,
-// vfkit headless + console=hvc0) the keyboard side of /dev/console
-// works — uart_console reads RX bytes directly. But under a VT
-// setup (vfkit + --gui + cmdline `console=hvc0 console=tty0`), the
-// kernel routes virtio-input keystrokes to whichever VT is the
-// active foreground tty (tty1 by default), NOT to /dev/console
-// itself. A read on /dev/console then blocks forever even though
-// the kernel is happily delivering events to /dev/tty1.
-//
-// To make the menu interactive in both worlds we read from
-// /dev/console AND /dev/tty1 in parallel and let the first source
-// to produce input win. Each source not actually receiving data
-// just blocks its goroutine harmlessly until PID 1 reboots.
+// Input is trickier. The kernel routes virtio-input keystrokes
+// to whichever VT is the active foreground tty (tty1 by default),
+// NOT to /dev/console. A read on /dev/console then blocks
+// forever in GUI mode even though the kernel is happily
+// delivering events to /dev/tty1. We race-merge reads from
+// /dev/console (serial RX) and /dev/tty1 (GUI kbd) so whichever
+// source receives a line first wins. The loser source's
+// goroutine leaks harmlessly until PID 1 reboots.
 func openConsole() (io.Reader, io.Writer) {
 	var sources []io.ReadCloser
-	var writer io.Writer = os.Stderr
+	var writers []io.Writer
+
+	// /dev/console — primary output target (kernel-selected
+	// console). Always available on a modern devtmpfs setup.
 	if f, err := os.OpenFile("/dev/console", os.O_RDWR, 0); err == nil {
 		sources = append(sources, f)
-		writer = f
+		writers = append(writers, f)
 	}
+	// /dev/hvc0 — virtio-console. Under vfkit/VZ this is the
+	// virtio-serial logFilePath sink. Opening it directly (vs
+	// going through /dev/console = tty0 in GUI mode) keeps
+	// the operator's `tail -F menu-serial.log` view useful
+	// even when the kernel-selected console is the framebuffer.
+	// We deliberately do NOT also probe /dev/ttyAMA0 / /dev/ttyS0
+	// here — those exist as devnodes whenever CONFIG_SERIAL_*
+	// is enabled but writes fail with -ENXIO when there's no
+	// backing UART (typical on VZ), which propagates through
+	// io.MultiWriter and aborts every menu render.
+	if f, err := os.OpenFile("/dev/hvc0", os.O_RDWR, 0); err == nil {
+		sources = append(sources, f)
+		writers = append(writers, f)
+	}
+	// VT — receives USB-HID/virtio-input keystrokes under
+	// vfkit --gui (CONFIG_USB_HID + CONFIG_HID + xHCI in the
+	// kernel; vfkit's --device virtio-input,keyboard exposes
+	// an Apple VZUSBKeyboardConfiguration).
 	if f, err := os.OpenFile("/dev/tty1", os.O_RDWR, 0); err == nil {
 		sources = append(sources, f)
-		// Keep /dev/console as the writer if we got it — its
-		// output reaches more consumers than tty1 alone. If we
-		// only got tty1, fall through to using it for output.
-		if writer == os.Stderr {
-			writer = f
-		}
 	}
+
+	var w io.Writer = os.Stderr
+	if len(writers) > 0 {
+		// Best-effort fan-out: a write that fails on one
+		// underlying writer (e.g. transient virtio-serial
+		// hiccup) must NOT abort the menu render and silently
+		// fall back to the default target. tolerantMultiWriter
+		// swallows per-writer errors and reports "n bytes
+		// written" as the max length any single writer
+		// accepted, so io.MultiWriter-style callers see no
+		// error and bufio.Scanner/menu code keeps running.
+		w = tolerantMultiWriter(writers)
+	}
+
 	switch len(sources) {
 	case 0:
-		return os.Stdin, os.Stderr
+		return os.Stdin, w
 	case 1:
-		return sources[0], writer
+		return sources[0], w
 	default:
-		return mergeReaders(sources), writer
+		return mergeReaders(sources), w
 	}
+}
+
+// tolerantMultiWriter returns an io.Writer that forwards each
+// Write call to every underlying writer, swallowing per-writer
+// errors. Used so the menu UI keeps rendering even when one of
+// /dev/console / /dev/hvc0 transiently fails — the alternative
+// (stock io.MultiWriter) aborts the write and the caller treats
+// the menu as broken, silently booting the default target.
+func tolerantMultiWriter(ws []io.Writer) io.Writer {
+	return tolerantMW{ws: ws}
+}
+
+type tolerantMW struct{ ws []io.Writer }
+
+func (t tolerantMW) Write(p []byte) (int, error) {
+	for _, w := range t.ws {
+		_, _ = w.Write(p)
+	}
+	return len(p), nil
 }
 
 // mergeReaders fans every byte from any of `srcs` into a single
@@ -525,6 +580,38 @@ func mergeReaders(srcs []io.ReadCloser) io.Reader {
 		}(src)
 	}
 	return pr
+}
+
+// dumpInputDevices reads /proc/bus/input/devices and logs each
+// device's Name + Handlers field. Used as a one-shot diagnostic
+// right before the interactive menu so the operator can see
+// whether virtio-input is being recognised as a keyboard.
+func dumpInputDevices(w io.Writer) {
+	data, err := os.ReadFile("/proc/bus/input/devices")
+	if err != nil {
+		fmt.Fprintf(w, "input-devices: read /proc/bus/input/devices: %v\n", err)
+		return
+	}
+	if len(data) == 0 {
+		fmt.Fprintf(w, "input-devices: NONE (kernel didn't enumerate any /dev/input/*)\n")
+		return
+	}
+	// Each device block is separated by a blank line; we log
+	// the Name + Handlers lines from each block.
+	for _, block := range strings.Split(string(data), "\n\n") {
+		var name, hand string
+		for _, ln := range strings.Split(block, "\n") {
+			if strings.HasPrefix(ln, "N: Name=") {
+				name = strings.TrimPrefix(ln, "N: Name=")
+			}
+			if strings.HasPrefix(ln, "H: Handlers=") {
+				hand = strings.TrimPrefix(ln, "H: Handlers=")
+			}
+		}
+		if name != "" || hand != "" {
+			fmt.Fprintf(w, "input-devices: %s  handlers=%s\n", name, hand)
+		}
+	}
 }
 
 // startLLDP kicks off LLDP advertise + listen in background goroutines and
