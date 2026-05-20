@@ -3,31 +3,38 @@
 // EFI System Partition discovery from a freshly-booted Linux PID 1.
 //
 // The menu-then-reboot sink needs to write the chosen target's
-// vmlinuz + initrd onto the ESP so the firmware can boot them on
-// the next round via `Boot0001`. To do that we have to find which
-// block device IS the ESP, then mount it read-write.
+// vmlinuz + initrd onto an ESP so the firmware can boot them on
+// the next round via `Boot0001`. The right ESP is the one on the
+// dedicated **cloud-boot cache disk** — a small writable virtio-
+// blk attached alongside the (now read-only) boot.iso. It's
+// identified by GPT partition name "cloud-boot-cache", which the
+// host-side `uki/scripts/make-cache-disk.sh` stamps at creation
+// time.
+//
+// Why name-match, not just type-match: under a typical menu-then-
+// reboot run the VM has at least one other ESP visible — most
+// cloud-image DISK targets (Debian, Ubuntu, Fedora, …) carry their
+// own EFI System Partition for their own bootloader. Writing
+// \EFI\Linux\<T>-vmlinuz.efi into one of those would land outside
+// the cache disk, polluting the distro image and possibly trapping
+// the firmware on the wrong partition after reboot. The name match
+// keeps the mutation surface to a single well-known disk.
 //
 // Strategy:
 //
-//  1. Walk every entry in /proc/partitions. For each block device,
-//     read its first 4 KiB and look for the GPT signature + the
-//     partition entry array. The ESP is the partition whose Type
-//     GUID is `C12A7328-F81F-11D2-BA4B-00A0C93EC93B`. (The same
-//     GPT-walking code as disk_resolve_linux.go's findGPT, but
-//     filtered by a known type GUID instead of by PARTLABEL.)
-//
-//  2. Once located, mount the partition at /esp via
-//     `unix.Mount(devPath, "/esp", "vfat", 0, "")`. The bootstrap
-//     kernel needs CONFIG_VFAT_FS=y for that — disk-arm64.config
-//     gains the right options in the same commit that introduces
-//     this file.
-//
-//  3. Return the mountpoint string. Caller writes files under it
+//  1. Walk every whole-disk entry in /proc/partitions and read its
+//     GPT (re-using disk_resolve_linux.go's parser).
+//  2. Collect every GPT entry whose TypeGUID is the ESP GUID
+//     (C12A7328-F81F-11D2-BA4B-00A0C93EC93B).
+//  3. Prefer the one whose GPT name is "cloud-boot-cache". If
+//     absent: warn and pick the first ESP (back-compat for ad-hoc
+//     test setups). If multiple ESPs are present and none match,
+//     fail clearly — the operator forgot to create the cache disk.
+//  4. Mount it at /esp via `unix.Mount(devPath, "/esp", "vfat",
+//     0, "")`. The kernel needs CONFIG_VFAT_FS=y (cloud variant
+//     ships it).
+//  5. Return the mountpoint string. Caller writes files under it
 //     and unmounts in defer.
-//
-// The location of the ESP isn't fixed (Apple VZ + most cloud
-// images put it at partition 14 / 15, Alpine puts it at partition
-// 0, …) so we always probe rather than assume.
 
 package main
 
@@ -43,7 +50,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const espMountPoint = "/esp"
+const (
+	espMountPoint = "/esp"
+
+	// cachePartitionName is the GPT partition name set by
+	// uki/scripts/make-cache-disk.sh on the cloud-boot cache
+	// disk's ESP. findESPDevice prefers it over any other ESP
+	// (e.g. one belonging to an attached cloud-image DISK
+	// target) so the reboot sink stages targets onto the
+	// dedicated writable disk, not somebody else's bootloader
+	// partition.
+	cachePartitionName = "cloud-boot-cache"
+)
 
 // espTypeGUID — EFI System Partition GPT type GUID, in raw on-disk
 // (mixed-endian) byte order.
@@ -87,33 +105,70 @@ func findAndMountESP() (string, error) {
 }
 
 // findESPDevice scans every /proc/partitions whole-disk entry,
-// reads its GPT, and returns the partition path matching
-// espTypeGUID. Re-uses disk_resolve_linux.go's listWholeDisks /
-// readGPTEntries / partitionPathFor helpers so we don't fork the
-// GPT parser.
+// reads its GPT, and returns the partition path of the cloud-
+// boot cache disk's ESP. Strategy: prefer a GPT entry whose
+// partition name is `cachePartitionName`; if none matches but
+// exactly one ESP exists overall, pick it (back-compat with
+// test setups that don't yet stamp the name); if multiple
+// nameless ESPs are present, fail with a clear hint about
+// running `uki/scripts/make-cache-disk.sh`.
 func findESPDevice() (string, error) {
 	disks, err := listWholeDisks()
 	if err != nil {
 		return "", fmt.Errorf("list whole disks: %w", err)
 	}
+
+	type candidate struct {
+		path     string
+		first    uint64
+		last     uint64
+		gptName  string
+	}
+	var all []candidate
 	for _, d := range disks {
 		entries, err := readGPTEntries(d)
 		if err != nil || entries == nil {
 			continue
 		}
-		for _, e := range entries {
-			if bytes.Equal(e.TypeGUID[:], espTypeGUID[:]) {
-				p, err := partitionPathFor(d, &e)
-				if err != nil {
-					continue
-				}
-				log.Printf("esp: found at %s (firstLBA=%d lastLBA=%d)",
-					p, e.FirstLBA, e.LastLBA)
-				return p, nil
+		for i := range entries {
+			e := &entries[i]
+			if !bytes.Equal(e.TypeGUID[:], espTypeGUID[:]) {
+				continue
 			}
+			p, err := partitionPathFor(d, e)
+			if err != nil {
+				continue
+			}
+			all = append(all, candidate{
+				path:    p,
+				first:   e.FirstLBA,
+				last:    e.LastLBA,
+				gptName: e.name(),
+			})
 		}
 	}
-	return "", errors.New("no EFI System Partition found on any GPT disk")
+	if len(all) == 0 {
+		return "", errors.New("no EFI System Partition found on any GPT disk (did you forget to attach the cloud-boot cache disk?)")
+	}
+	for _, c := range all {
+		if c.gptName == cachePartitionName {
+			log.Printf("esp: cache disk found at %s (firstLBA=%d lastLBA=%d name=%q)",
+				c.path, c.first, c.last, c.gptName)
+			return c.path, nil
+		}
+	}
+	if len(all) == 1 {
+		c := all[0]
+		log.Printf("esp: WARN no partition named %q; falling back to the only ESP %s (firstLBA=%d lastLBA=%d name=%q)",
+			cachePartitionName, c.path, c.first, c.last, c.gptName)
+		return c.path, nil
+	}
+	names := make([]string, 0, len(all))
+	for _, c := range all {
+		names = append(names, fmt.Sprintf("%s(name=%q)", c.path, c.gptName))
+	}
+	return "", fmt.Errorf("multiple ESPs and none named %q — attach the cloud-boot cache disk (host: uki/scripts/make-cache-disk.sh). Candidates: %v",
+		cachePartitionName, names)
 }
 
 // Tiny sanity helper used by tests + the reboot sink: read the
