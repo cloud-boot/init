@@ -73,7 +73,14 @@ func findAndMountESP() (string, error) {
 		return "", fmt.Errorf("mkdir %s: %w", espMountPoint, err)
 	}
 	log.Printf("esp: mounting %s on %s (vfat, rw)", dev, espMountPoint)
-	if err := unix.Mount(dev, espMountPoint, "vfat", 0, "iocharset=ascii"); err != nil {
+	// No iocharset= argument: the kernel falls back to
+	// CONFIG_NLS_DEFAULT (iso8859-1 on cloud-arm64.config,
+	// ascii on disk-arm64.config). Hardcoding `iocharset=ascii`
+	// makes the mount fail with EINVAL on any kernel that lacks
+	// CONFIG_NLS_ASCII=y. The \EFI\Linux\<target>-* filenames
+	// the reboot sink writes are pure ASCII anyway — iso8859-1
+	// and ascii are indistinguishable in that subset.
+	if err := unix.Mount(dev, espMountPoint, "vfat", 0, ""); err != nil {
 		return "", fmt.Errorf("mount %s as vfat: %w", dev, err)
 	}
 	return espMountPoint, nil
