@@ -66,8 +66,28 @@ func rebootSink(targetName, kPath, iPath, kArgs string) error {
 	}
 	log.Printf("reboot-sink: staged kernel=%s initrd=%s", espKernel, espInitrd)
 
-	log.Printf("reboot-sink: TODO — write Boot0001, reboot(2)")
-	return fmt.Errorf("reboot-sink not yet implemented past file staging (see memory:uki-menu-then-reboot)")
+	// Build the OptionalData payload — the EFI stub reads
+	// LoadedImage.LoadOptions as a UTF-16LE string and treats it as
+	// the kernel cmdline. For initrd-bearing targets we prepend the
+	// stub's own `initrd=...` directive so it loads the initrd from
+	// the same FAT volume via SimpleFileSystem.
+	cmdline := kArgs
+	if espInitrd != "" {
+		cmdline = "initrd=" + espInitrd + " " + kArgs
+	}
+	desc := "cloud-boot " + targetName
+	lo := encodeLoadOption(desc, espKernel, cmdline)
+	if err := writeEFIVar("Boot0001", efiAttrsNVBSRT, lo); err != nil {
+		return fmt.Errorf("write Boot0001: %w", err)
+	}
+	log.Printf("reboot-sink: Boot0001 written (%d bytes)", len(lo))
+	if err := prependToBootOrder(0x0001); err != nil {
+		return fmt.Errorf("update BootOrder: %w", err)
+	}
+	log.Printf("reboot-sink: BootOrder prefixed with 0001")
+
+	log.Printf("reboot-sink: TODO — reboot(2)")
+	return fmt.Errorf("reboot-sink not yet implemented past NVRAM writes (see memory:uki-menu-then-reboot)")
 }
 
 // stageTargetOnESP copies the resolved kernel and initrd into
