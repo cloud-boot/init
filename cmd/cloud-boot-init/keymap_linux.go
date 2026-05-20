@@ -19,9 +19,10 @@
 // keymap anyway).
 //
 // Cmdline knob:
-//   cloudboot.keymap=fr   # French AZERTY (minimal)
-//   cloudboot.keymap=us   # noop (kernel default)
-//   cloudboot.keymap=     # noop
+//   cloudboot.keymap=fr      # French AZERTY (PC layout)
+//   cloudboot.keymap=fr-mac  # French AZERTY (Apple MacBook layout)
+//   cloudboot.keymap=us      # noop (kernel default)
+//   cloudboot.keymap=        # noop
 //
 // Adding more layouts: declare another []keymapEntry table and
 // add a case to the switch in loadKeymap.
@@ -105,6 +106,54 @@ var frAzerty = []keymapEntry{
 	{43, [4]uint16{'*', 0xb5 /*µ*/, 0, 0}},           // KEY_BACKSLASH
 }
 
+// frMacAzerty is the Apple MacBook French AZERTY layout — the
+// physical labels on a French Apple keyboard differ from the
+// PC AZERTY norm on several keys (notably § on the 6 key, ! on
+// the 8 key, @ on the leftmost backtick position, = on the slash
+// position, - on the equals position). Apple users coming from
+// macOS see the keys labelled this way and will mistype if we
+// load the PC `fr` table.
+//
+// Source: Apple's "French (AZERTY)" input source as shipped with
+// macOS 14, cross-referenced against the engraving on a 2024
+// MacBook Pro French keyboard. Only differences from the
+// kernel's US-QWERTY default are encoded — entries that match
+// US (the bulk of the letter row) are skipped.
+var frMacAzerty = []keymapEntry{
+	// Backtick position: Apple labels it @/# (PC AZERTY has ²/³ here).
+	{41, [4]uint16{'@', '#', 0, 0}}, // KEY_GRAVE
+	// Digit row — Apple AZERTY: & é " ' ( § è ! ç à ) -
+	// shifted gives 1 2 3 4 5 6 7 8 9 0 ° _
+	{2, [4]uint16{'&', '1', 0, 0}},
+	{3, [4]uint16{0xe9 /*é*/, '2', 0, 0}},
+	{4, [4]uint16{'"', '3', 0, 0}},
+	{5, [4]uint16{'\'', '4', 0, 0}},
+	{6, [4]uint16{'(', '5', 0, 0}},
+	{7, [4]uint16{0xa7 /*§*/, '6', 0, 0}},
+	{8, [4]uint16{0xe8 /*è*/, '7', 0, 0}},
+	{9, [4]uint16{'!', '8', 0, 0}},
+	{10, [4]uint16{0xe7 /*ç*/, '9', 0, 0}},
+	{11, [4]uint16{0xe0 /*à*/, '0', 0, 0}},
+	{12, [4]uint16{')', 0xb0 /*°*/, 0, 0}}, // KEY_MINUS
+	{13, [4]uint16{'-', '_', 0, 0}},        // KEY_EQUAL (Apple has - here, PC has =)
+	// Top letter row: QWER → AZER swap.
+	{16, [4]uint16{'a', 'A', 0, 0}}, // KEY_Q → a
+	{17, [4]uint16{'z', 'Z', 0, 0}}, // KEY_W → z
+	{26, [4]uint16{'^', 0xa8 /*¨*/, 0, 0}}, // KEY_LEFTBRACE
+	{27, [4]uint16{'$', '*', 0, 0}},        // KEY_RIGHTBRACE (Apple has $/*; PC is $/£)
+	// Home row: A → Q swap.
+	{30, [4]uint16{'q', 'Q', 0, 0}}, // KEY_A → q
+	{39, [4]uint16{'m', 'M', 0, 0}}, // KEY_SEMICOLON → m
+	{40, [4]uint16{0xf9 /*ù*/, '%', 0, 0}}, // KEY_APOSTROPHE
+	{43, [4]uint16{'`', 0xa3 /*£*/, 0, 0}}, // KEY_BACKSLASH (Apple has backtick/pound; PC has */µ)
+	// Bottom letter row: Z → W swap, then the punctuation.
+	{44, [4]uint16{'w', 'W', 0, 0}}, // KEY_Z → w
+	{50, [4]uint16{',', '?', 0, 0}}, // KEY_M → ,
+	{51, [4]uint16{';', '.', 0, 0}}, // KEY_COMMA → ;
+	{52, [4]uint16{':', '/', 0, 0}}, // KEY_DOT → :
+	{53, [4]uint16{'=', '+', 0, 0}}, // KEY_SLASH (Apple has =/+; PC has !/§)
+}
+
 // loadKeymap replays a keymapEntry slice as KDSKBENT ioctls on
 // /dev/tty0. A name of "" or "us" is a no-op (keep the kernel
 // default). Unknown names are an error so the operator catches
@@ -116,8 +165,10 @@ func loadKeymap(name string) error {
 		return nil
 	case "fr":
 		km = frAzerty
+	case "fr-mac", "mac-fr":
+		km = frMacAzerty
 	default:
-		return fmt.Errorf("unsupported keymap %q (try: fr, us)", name)
+		return fmt.Errorf("unsupported keymap %q (try: fr, fr-mac, us)", name)
 	}
 	f, err := os.OpenFile("/dev/tty0", os.O_RDWR, 0)
 	if err != nil {

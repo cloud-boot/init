@@ -26,7 +26,7 @@
 //	cloudboot.menu.prompt=<text>  override the plan's menu prompt header
 //	cloudboot.keymap=<layout>     load a console keymap before the menu
 //	                              (default "" = kernel's compiled-in US-QWERTY;
-//	                              supported: "fr" for French AZERTY).
+//	                              supported: "fr" PC AZERTY, "fr-mac" Apple AZERTY).
 //	cloudboot.cmdline=<text>      override the cmdline passed to the downloaded kernel
 //	cloudboot.insecure=1          allow plain HTTP for the plan reference
 //	cloudboot.lldp=0              disable LLDP listen + transmit
