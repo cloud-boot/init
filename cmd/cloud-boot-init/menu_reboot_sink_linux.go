@@ -35,13 +35,21 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 // rebootSink is the menu-then-reboot replacement for kexec.Load +
-// kexec.Boot. Built incrementally — current scope: find + mount the
-// ESP. Subsequent commits copy kernel+initrd, write Boot####, and
-// trigger reboot(2).
+// kexec.Boot. Built incrementally — current scope: ESP discovery
+// + kernel/initrd copy. Subsequent commits write Boot####/BootOrder
+// and trigger reboot(2).
+//
+// On success the firmware can find the chosen target's UKI at
+// \EFI\Linux\<sanitized-target>-vmlinuz.efi (matches the
+// systemd-boot layout convention closely enough that an operator
+// inspecting the ESP with `mdir` doesn't get surprised).
 func rebootSink(targetName, kPath, iPath, kArgs string) error {
 	log.Printf("reboot-sink: target=%s kernel=%s initrd=%s", targetName, kPath, iPath)
 	log.Printf("reboot-sink: cmdline=%q", kArgs)
@@ -51,6 +59,70 @@ func rebootSink(targetName, kPath, iPath, kArgs string) error {
 		return fmt.Errorf("esp: %w", err)
 	}
 	log.Printf("reboot-sink: ESP mounted at %s", esp)
-	log.Printf("reboot-sink: TODO — copy kernel/initrd, write Boot0001, reboot(2)")
-	return fmt.Errorf("reboot-sink not yet implemented past ESP discovery (see memory:uki-menu-then-reboot)")
+
+	espKernel, espInitrd, err := stageTargetOnESP(esp, targetName, kPath, iPath)
+	if err != nil {
+		return fmt.Errorf("stage target: %w", err)
+	}
+	log.Printf("reboot-sink: staged kernel=%s initrd=%s", espKernel, espInitrd)
+
+	log.Printf("reboot-sink: TODO — write Boot0001, reboot(2)")
+	return fmt.Errorf("reboot-sink not yet implemented past file staging (see memory:uki-menu-then-reboot)")
+}
+
+// stageTargetOnESP copies the resolved kernel and initrd into
+// `<esp>/EFI/Linux/<safeName>-vmlinuz.efi` + `<safeName>-initrd`.
+// Returns the ESP-relative paths (with backslashes, the form the
+// LoadOption needs) so commit 4 can drop them straight into the
+// FilePath element of the device path.
+//
+// The kernel is opened up to its full size (cloud-boot init has
+// already AllocatePool'd it earlier, so the source is a regular
+// file on the tmpfs initrd). io.Copy uses a 32 KiB buffer; with
+// kernels at ~10-20 MiB and initrds at ~100-500 MiB the copy
+// completes in well under a second on virtio-blk.
+func stageTargetOnESP(esp, targetName, kPath, iPath string) (espKernel, espInitrd string, err error) {
+	safe := sanitize(targetName)
+	linuxDir := filepath.Join(esp, "EFI", "Linux")
+	if err := os.MkdirAll(linuxDir, 0o755); err != nil {
+		return "", "", fmt.Errorf("mkdir %s: %w", linuxDir, err)
+	}
+	kHost := filepath.Join(linuxDir, safe+"-vmlinuz.efi")
+	iHost := filepath.Join(linuxDir, safe+"-initrd")
+	if err := copyFileOnto(kPath, kHost); err != nil {
+		return "", "", fmt.Errorf("copy kernel: %w", err)
+	}
+	if iPath != "" {
+		if err := copyFileOnto(iPath, iHost); err != nil {
+			return "", "", fmt.Errorf("copy initrd: %w", err)
+		}
+	}
+	// LoadOption FilePath uses backslashes, ESP-rooted paths.
+	espKernel = `\EFI\Linux\` + safe + `-vmlinuz.efi`
+	espInitrd = `\EFI\Linux\` + safe + `-initrd`
+	if iPath == "" {
+		espInitrd = ""
+	}
+	return espKernel, espInitrd, nil
+}
+
+// copyFileOnto is a straightforward read-and-write. Permissions on
+// the FAT side are notional (VFAT serves files with a fixed mode
+// derived from the mount options), so we don't bother chmod'ing
+// after close.
+func copyFileOnto(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }
