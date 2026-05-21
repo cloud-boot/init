@@ -71,6 +71,15 @@ func stageBootBytes(kBytes, iBytes []byte) (string, string, error) {
 // produces /dev/vdaN, not /dev/vda), so partIndex=-1 just means
 // "treat the device path as a bare filesystem image".
 func openFS(p diskParams, devicePath string) (filesystem.Filesystem, error) {
+	// Bail early with a clear error if the device is LUKS-
+	// encrypted — letting ext4.Open(/Xfs/Btrfs.Open) plough on
+	// would produce "bad magic"/EINVAL and the operator would
+	// have no idea why. See disk_luks_linux.go for the
+	// detection + the upstream lib work needed to actually
+	// unlock + layer.
+	if err := checkNotLUKS(devicePath); err != nil {
+		return nil, err
+	}
 	switch p.FS {
 	case "", "ext4":
 		fs, err := fsext4.Open(devicePath, -1)
