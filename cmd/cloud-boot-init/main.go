@@ -30,7 +30,17 @@
 //	                              OpenStack-friendly (point at the metadata
 //	                              service or a per-instance proxy).
 //	cloudboot.metadata.token=<t>  optional Bearer token sent with the metadata
-//	                              fetch — for private endpoints.
+//	                              fetch — for private endpoints. Auto-set
+//	                              when an OpenStack AC exchange succeeds.
+//
+//	OpenStack Keystone application-credential auth (optional):
+//	cloudboot.openstack.auth-url=<https://keystone:5000/v3>
+//	cloudboot.openstack.app-cred-id=<uuid>
+//	cloudboot.openstack.app-cred-secret=<secret>
+//	  When all three are set, init POSTs to {auth-url}/auth/tokens
+//	  with the AC creds, captures the X-Subject-Token header, and
+//	  stuffs it into cloudboot.metadata.token so the downstream
+//	  metadata fetch (and future Bearer-aware OCI client) reuse it.
 //	cloudboot.target=<name>       plan target selector (skips the menu)
 //	cloudboot.menu=0|1            force the interactive boot menu off / on
 //	cloudboot.menu.timeout=<dur>  override the plan's menu.timeout ("5s", "10")
@@ -144,6 +154,28 @@ func run() error {
 	// further down — see applyDNSOverride.
 	if applyDNSOverride(cmd["cloudboot.dns"], "cmdline") {
 		oci.ClearSRVCache()
+	}
+
+	// If an OpenStack application credential is supplied, exchange
+	// it for a Keystone token before the metadata fetch + plan
+	// pull so both can reuse it as Bearer auth. The token lands
+	// in cmd["cloudboot.metadata.token"] so applyMetadataOverrides
+	// (and any future Bearer-aware OCI client) pick it up.
+	// Non-fatal: a failed exchange degrades to "no auth" — the
+	// downstream fetch may still succeed against a public
+	// endpoint, or fail with a clearer 401.
+	if cmd["cloudboot.openstack.auth-url"] != "" {
+		tok, err := fetchKeystoneToken(
+			cmd["cloudboot.openstack.auth-url"],
+			cmd["cloudboot.openstack.app-cred-id"],
+			cmd["cloudboot.openstack.app-cred-secret"],
+		)
+		if err != nil {
+			log.Printf("keystone: %v (continuing without bearer token)", err)
+		} else {
+			cmd["cloudboot.metadata.token"] = tok
+			log.Printf("keystone: token acquired (%d chars), stored as cloudboot.metadata.token", len(tok))
+		}
 	}
 
 	// cloudboot.metadata.url=<url> fetches a JSON document and
