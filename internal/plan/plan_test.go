@@ -488,3 +488,47 @@ target "alpine" {
 		t.Fatal("expected error on undefined reference inside locals")
 	}
 }
+
+// TestDecodeAndPick_Subplan verifies the subplan target type decodes
+// and Pick returns it intact for the init recursion loop to consume.
+func TestDecodeAndPick_Subplan(t *testing.T) {
+	src := `
+default_target = "production"
+target "production" {
+  label   = "Live fleet"
+  subplan = "registry.example.com/boot/production:latest"
+}
+`
+	p, err := Decode([]byte(src), "plan.hcl", EvalContext("arm64", nil))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	tt, err := p.Pick("", "arm64")
+	if err != nil {
+		t.Fatalf("pick: %v", err)
+	}
+	if tt.Subplan != "registry.example.com/boot/production:latest" {
+		t.Errorf("Subplan = %q, want registry.example.com/boot/production:latest", tt.Subplan)
+	}
+	if tt.Index != "" || tt.Disk != nil {
+		t.Errorf("expected pure-subplan target, got Index=%q Disk=%v", tt.Index, tt.Disk)
+	}
+}
+
+// TestDecode_SubplanExclusivity ensures a target can't carry both
+// subplan and an OCI ref / disk block.
+func TestDecode_SubplanExclusivity(t *testing.T) {
+	src := `
+target "bad" {
+  index   = "x:1"
+  subplan = "y:2"
+}
+`
+	_, err := Decode([]byte(src), "plan.hcl", EvalContext("arm64", nil))
+	if err == nil {
+		t.Fatal("expected error on target with both index and subplan")
+	}
+	if !strings.Contains(err.Error(), "subplan") {
+		t.Errorf("error message should mention subplan: %v", err)
+	}
+}

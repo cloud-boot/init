@@ -130,6 +130,14 @@ type Target struct {
 	InitrdExpr  hcl.Expression `hcl:"initrd,optional"`
 	ModulesExpr hcl.Expression `hcl:"modules,optional"`
 	CmdlineExpr hcl.Expression `hcl:"cmdline,optional"`
+	// SubplanExpr makes the target a CHAINED PLAN reference rather
+	// than something directly bootable. When set (and non-empty
+	// after eval), init fetches the referenced OCI plan, decodes
+	// it, and runs target selection on the inner plan — letting
+	// an embedded boot.iso ship a tiny static menu whose entries
+	// expand into live plans pulled from a registry. Mutually
+	// exclusive with the OCI/disk fields.
+	SubplanExpr hcl.Expression `hcl:"subplan,optional"`
 	Disk        *Disk          `hcl:"disk,block"` // when set, boot from a local disk
 
 	// Resolved string forms, populated by Decode. No HCL tag —
@@ -140,6 +148,7 @@ type Target struct {
 	Initrd  string
 	Modules string
 	Cmdline string
+	Subplan string
 }
 
 // Disk selects "kexec into the kernel that already lives on a local block
@@ -235,6 +244,7 @@ func Decode(data []byte, filename string, ctx *hcl.EvalContext) (*Plan, error) {
 			{"kernel", t.KernelExpr, &t.Kernel},
 			{"initrd", t.InitrdExpr, &t.Initrd},
 			{"modules", t.ModulesExpr, &t.Modules},
+			{"subplan", t.SubplanExpr, &t.Subplan},
 		}
 		for _, f := range fields {
 			if f.expr == nil {
@@ -256,8 +266,15 @@ func Decode(data []byte, filename string, ctx *hcl.EvalContext) (*Plan, error) {
 
 		hasOCI := t.Index != "" || t.Kernel != "" || t.Initrd != "" || t.Modules != ""
 		hasDisk := t.Disk != nil
-		if hasOCI == hasDisk {
-			return nil, fmt.Errorf("plan: target %q must set exactly one of an OCI ref (index/kernel/initrd/modules) or disk{}", t.Name)
+		hasSubplan := t.Subplan != ""
+		n := 0
+		for _, b := range []bool{hasOCI, hasDisk, hasSubplan} {
+			if b {
+				n++
+			}
+		}
+		if n != 1 {
+			return nil, fmt.Errorf("plan: target %q must set exactly one of an OCI ref (index/kernel/initrd/modules), disk{} block, or subplan=", t.Name)
 		}
 	}
 	return &p, nil

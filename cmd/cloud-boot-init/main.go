@@ -21,8 +21,16 @@
 //	cloudboot.plan=<ref>          OCI reference of an HCL boot plan (preferred).
 //	                              When omitted, falls back to a plan baked into
 //	                              the initramfs at /etc/cloud-boot/plan.hcl
-//	                              (see cloud-boot build --plan-file).
+//	                              (see cloud-boot build --plan-file). Plan
+//	                              targets may carry subplan="<oci-ref>" to chain
+//	                              into a nested plan (up to 8 levels).
 //	cloudboot.image=<ref>         legacy single-image mode (no plan)
+//	cloudboot.metadata.url=<url>  optional: fetch a JSON doc at boot whose
+//	                              `cloudboot` block overrides cmdline knobs.
+//	                              OpenStack-friendly (point at the metadata
+//	                              service or a per-instance proxy).
+//	cloudboot.metadata.token=<t>  optional Bearer token sent with the metadata
+//	                              fetch — for private endpoints.
 //	cloudboot.target=<name>       plan target selector (skips the menu)
 //	cloudboot.menu=0|1            force the interactive boot menu off / on
 //	cloudboot.menu.timeout=<dur>  override the plan's menu.timeout ("5s", "10")
@@ -136,6 +144,21 @@ func run() error {
 	// further down — see applyDNSOverride.
 	if applyDNSOverride(cmd["cloudboot.dns"], "cmdline") {
 		oci.ClearSRVCache()
+	}
+
+	// cloudboot.metadata.url=<url> fetches a JSON document and
+	// applies its `cloudboot.*` entries as cmdline knob overrides.
+	// Designed for OpenStack-shaped deployments where the
+	// per-instance config lives behind the metadata service at
+	// 169.254.169.254 (or any other HTTP endpoint), but works for
+	// any URL returning {"cloudboot": {"plan": "...", ...}}. Runs
+	// AFTER network bringup so DHCP-assigned addresses + DNS are
+	// in place, BEFORE resolveTarget so the override can change
+	// which plan / target is picked. See applyMetadataOverrides.
+	if mdURL := cmd["cloudboot.metadata.url"]; mdURL != "" {
+		if err := applyMetadataOverrides(mdURL, cmd); err != nil {
+			log.Printf("metadata: %v (continuing with cmdline values)", err)
+		}
 	}
 
 	// LLDP is non-blocking: start the listener now so it runs in parallel
@@ -307,6 +330,13 @@ func verifyManifest(v *cosign.Verifier, c *oci.Client, ref *oci.Ref, mode string
 // document itself is local).
 const embeddedPlanPath = "/etc/cloud-boot/plan.hcl"
 
+// maxSubplanDepth caps the chained-plan recursion depth. A target
+// with subplan="<oci-ref>" causes init to fetch + decode the
+// inner plan and run target selection again; depth N+1 means N+1
+// nested fetches. 8 is generous for any realistic federation
+// hierarchy and trips the operator early on accidental cycles.
+const maxSubplanDepth = 8
+
 // resolveTarget returns the chosen Target plus any plan-level DNS
 // override the caller should apply before the target's refs are
 // fetched. Four modes, tried in order:
@@ -327,43 +357,89 @@ const embeddedPlanPath = "/etc/cloud-boot/plan.hcl"
 // variable. v (may be nil) verifies cosign signatures over the plan
 // manifest.
 func resolveTarget(c *oci.Client, cmd map[string]string, facts *lldp.Facts, v *cosign.Verifier) (*plan.Target, []string, error) {
-	if planRef := cmd["cloudboot.plan"]; planRef != "" {
-		ref, err := oci.ParseRef(planRef)
+	// First, get the initial plan bytes from one of three
+	// sources (in priority order). Then run target selection
+	// in a loop so subplan targets unwrap into their nested
+	// plan automatically.
+	var hclBytes []byte
+	var planName string
+	var err error
+	switch {
+	case cmd["cloudboot.plan"] != "":
+		hclBytes, err = pullPlanFromOCI(c, cmd["cloudboot.plan"], cmd, v)
+		planName = "plan.hcl"
+	default:
+		if b, e := os.ReadFile(embeddedPlanPath); e == nil {
+			log.Printf("plan: using embedded %s (%d bytes)", embeddedPlanPath, len(b))
+			hclBytes = b
+			planName = embeddedPlanPath
+		} else if imgRef := cmd["cloudboot.image"]; imgRef != "" {
+			return &plan.Target{Name: "legacy-image", Index: imgRef}, nil, nil
+		} else {
+			return nil, nil, fmt.Errorf("missing cloudboot.plan= / %s / cloudboot.image=", embeddedPlanPath)
+		}
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var dns []string
+	for depth := 0; depth < maxSubplanDepth; depth++ {
+		t, planDNS, err := decodeAndPick(hclBytes, planName, cmd, facts)
 		if err != nil {
 			return nil, nil, err
 		}
-		if cmd["cloudboot.insecure"] == "1" {
-			ref.Scheme = "http"
+		// Plan-level DNS comes from the OUTERMOST plan; inner
+		// subplans don't override (they couldn't dial anywhere
+		// without resolv.conf already in place).
+		if depth == 0 {
+			dns = planDNS
 		}
-		if err := verifyManifest(v, c, ref, cmd["cloudboot.cosign"]); err != nil {
-			return nil, nil, fmt.Errorf("plan signature: %w", err)
+		if t.Subplan == "" {
+			return t, dns, nil
 		}
-		m, _, err := c.PullManifestForPlatform(ref, "linux", runtime.GOARCH)
+		// Pick was a subplan target — fetch its referenced plan
+		// and loop. After a subplan jump, the user typically
+		// wants the inner plan's menu to display rather than
+		// re-using cloudboot.target= (which named the outer
+		// subplan target, not anything inside the inner plan).
+		log.Printf("plan: target %q is a subplan -> fetching %s (depth %d)",
+			t.Name, t.Subplan, depth+1)
+		hclBytes, err = pullPlanFromOCI(c, t.Subplan, cmd, v)
 		if err != nil {
-			return nil, nil, fmt.Errorf("plan manifest: %w", err)
+			return nil, nil, fmt.Errorf("subplan %s: %w", t.Subplan, err)
 		}
-		hclBytes, err := findAndPullLayer(c, ref, m, oci.MediaTypePlan, "plan")
-		if err != nil {
-			return nil, nil, err
-		}
-		return decodeAndPick(hclBytes, "plan.hcl", cmd, facts)
+		planName = "subplan.hcl"
+		// Clear cloudboot.target so the inner plan re-prompts.
+		delete(cmd, "cloudboot.target")
 	}
-	if hclBytes, err := os.ReadFile(embeddedPlanPath); err == nil {
-		log.Printf("plan: using embedded %s (%d bytes)", embeddedPlanPath, len(hclBytes))
-		return decodeAndPick(hclBytes, embeddedPlanPath, cmd, facts)
+	return nil, nil, fmt.Errorf("subplan recursion exceeded %d levels (loop?)", maxSubplanDepth)
+}
+
+// pullPlanFromOCI fetches the HCL plan bytes for an OCI ref using
+// the same cosign-verify + platform-resolve dance as the original
+// cloudboot.plan= branch. Returns the layer bytes ready to feed
+// into plan.Decode.
+func pullPlanFromOCI(c *oci.Client, planRef string, cmd map[string]string, v *cosign.Verifier) ([]byte, error) {
+	ref, err := oci.ParseRef(planRef)
+	if err != nil {
+		return nil, err
 	}
-	if imgRef := cmd["cloudboot.image"]; imgRef != "" {
-		// cloudboot.image= is a single-ref legacy shorthand; treat the
-		// pointed-at artifact as an index (its manifest may bundle
-		// multiple layers).
-		return &plan.Target{Name: "legacy-image", Index: imgRef}, nil, nil
+	if cmd["cloudboot.insecure"] == "1" {
+		ref.Scheme = "http"
 	}
-	return nil, nil, fmt.Errorf("missing cloudboot.plan= / %s / cloudboot.image=", embeddedPlanPath)
+	if err := verifyManifest(v, c, ref, cmd["cloudboot.cosign"]); err != nil {
+		return nil, fmt.Errorf("plan signature: %w", err)
+	}
+	m, _, err := c.PullManifestForPlatform(ref, "linux", runtime.GOARCH)
+	if err != nil {
+		return nil, fmt.Errorf("plan manifest: %w", err)
+	}
+	return findAndPullLayer(c, ref, m, oci.MediaTypePlan, "plan")
 }
 
 // decodeAndPick is the shared HCL-decode + target-selection path,
-// used both by the OCI-fetched plan branch and the embedded plan
-// fallback in resolveTarget.
+// used at each depth of the subplan recursion.
 func decodeAndPick(hclBytes []byte, filename string, cmd map[string]string, facts *lldp.Facts) (*plan.Target, []string, error) {
 	p, err := plan.Decode(hclBytes, filename, plan.EvalContext(runtime.GOARCH, facts))
 	if err != nil {
