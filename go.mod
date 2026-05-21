@@ -3,6 +3,11 @@ module github.com/cloud-boot/init
 go 1.25.1
 
 require (
+	github.com/go-filesystems/btrfs v0.0.0
+	github.com/go-filesystems/ext4 v0.0.0
+	github.com/go-filesystems/interface v0.0.0
+	github.com/go-filesystems/xfs v0.0.0
+	github.com/go-filesystems/zfs v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/hcl/v2 v2.21.0
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/klauspost/compress v1.18.6
@@ -14,13 +19,24 @@ require (
 	golang.org/x/sys v0.44.0
 )
 
-// Local sibling checkout — until the repo is published.
+// Local sibling checkouts — until the repos are published.
 replace github.com/go-coff/peln => ../../go-coff/peln
+
+replace github.com/go-filesystems/interface => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/interface
+
+replace github.com/go-filesystems/ext4 => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/ext4
+
+replace github.com/go-filesystems/xfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/xfs
+
+replace github.com/go-filesystems/btrfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/btrfs
+
+replace github.com/go-filesystems/zfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/zfs
 
 require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
+	github.com/go-filesystems/interface v0.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect

@@ -5,17 +5,10 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/cloud-boot/init/internal/kexec"
 	"github.com/cloud-boot/init/internal/plan"
 )
-
-const diskMount = "/mnt"
 
 // diskParams bundles every input runDisk needs. Both entry points — cmdline
 // keys (early-boot dispatch in main.go) and plan targets with a disk{} block
@@ -79,23 +72,21 @@ func runDisk(p diskParams) error {
 		p.FS = "ext4"
 	}
 
-	// ZFS is special: p.Device is a dataset path
-	// (`rpool/ROOT/pve-1`), not a /dev/<name>, and mounting it
-	// requires modprobe zfs + zpool import + zfs mount via
-	// userspace zfsutils — see runDiskZFS for the full sequence.
-	// On success the dataset is mounted at diskMount and we fall
-	// through to runDiskMounted; on failure the precondition
-	// errors are surfaced verbatim.
+	// ZFS keeps its own opener — Disk.Device is a dataset path,
+	// not a /dev/<name>, and pool discovery + dataset traversal
+	// can't share resolveBlockDevice. runDiskZFS stages kernel
+	// and initrd under downloadDir, then jumps straight to the
+	// kexec dispatch via kexecStaged.
 	if p.FS == "zfs" {
-		if err := runDiskZFS(p); err != nil {
-			return err
-		}
-		return runDiskMounted(p)
+		return runDiskZFS(p)
 	}
 
-	// Resolve LABEL=… / UUID=… / PARTLABEL=… / PARTUUID=… to a real
-	// /dev/<name>. Same syntax as the kernel's `root=`. Literal /dev
-	// paths pass through unchanged.
+	// Everything else (ext4 / xfs / btrfs) goes through the
+	// unified pure-Go path: resolve LABEL/UUID → /dev/<name>,
+	// open with the right go-filesystems driver, extract kernel
+	// and initrd as bytes, stage under downloadDir, kexec. No
+	// unix.Mount(2). Kernel doesn't need CONFIG_*_FS for these
+	// filesystems anymore.
 	resolved, err := resolveBlockDevice(p.Device)
 	if err != nil {
 		return fmt.Errorf("resolve %s: %w", p.Device, err)
@@ -104,40 +95,28 @@ func runDisk(p diskParams) error {
 		log.Printf("resolved %s → %s", p.Device, resolved)
 	}
 
-	if err := os.MkdirAll(diskMount, 0o755); err != nil {
+	fs, err := openFS(p, resolved)
+	if err != nil {
 		return err
 	}
-	log.Printf("mounting %s (%s) on %s read-only", resolved, p.FS, diskMount)
-	if err := unix.Mount(resolved, diskMount, p.FS, unix.MS_RDONLY, ""); err != nil {
-		return fmt.Errorf("mount %s: %w", resolved, err)
+	defer fs.Close()
+
+	kPath, iPath, err := extractAndStage(fs, p)
+	if err != nil {
+		return err
 	}
-	return runDiskMounted(p)
+	return kexecStaged(p, kPath, iPath)
 }
 
-// runDiskMounted finishes the disk-target boot sequence once the
-// disk (or ZFS dataset) is mounted at `diskMount`. Locates the
-// kernel + initrd + cmdline on the mount, kexecs into them, and
-// arranges an unmount on the non-happy path so the disk doesn't
-// stay pinned.
+// kexecStaged hands two staged-under-downloadDir paths to
+// kexec.Load + Boot. Cmdline resolution: explicit override on
+// the target wins; otherwise empty (the chained kernel falls
+// back to its built-in CONFIG_CMDLINE — we no longer can read
+// /etc/kernel/cmdline because the source disk isn't mounted).
 //
-// Shared by every fs= branch (ext4 / xfs / btrfs / zfs); the only
-// thing the caller varies is HOW the mount got there.
-func runDiskMounted(p diskParams) error {
-	// We pass nothing to the next kernel via diskMount itself —
-	// kexec_file_load has the file content in memory by the time
-	// Boot() runs. Unmount on any non-boot exit path so userspace
-	// doesn't keep the disk pinned.
-	defer func() { _ = unix.Unmount(diskMount, 0) }()
-
-	kPath, err := resolveDiskKernel(p.Kernel)
-	if err != nil {
-		return err
-	}
-	iPath, err := resolveDiskInitrd(p.Initrd, kPath)
-	if err != nil {
-		return err
-	}
-	kArgs := resolveDiskCmdline(p.Cmdline)
+// Shared by every disk-fs= branch.
+func kexecStaged(p diskParams, kPath, iPath string) error {
+	kArgs := p.Cmdline
 
 	log.Printf("kexec load (kernel=%s initrd=%s cmdline=%q)", kPath, iPath, kArgs)
 	if err := kexec.Load(kPath, iPath, kArgs); err != nil {
@@ -148,70 +127,9 @@ func runDiskMounted(p diskParams) error {
 }
 
 // resolveDiskKernel picks the kernel path on the mounted disk: either
-// an explicit override, or the newest file matching one of:
-//
-//	/boot/vmlinuz-*     Debian / Ubuntu / Fedora amd64 / Alpine
-//	/boot/Image-*       openSUSE arm64 (kernel named "Image-…-default")
-//	/vmlinuz-*          when the mount IS the /boot partition (Fedora)
-//	/Image-*            same, arm64 distros with a dedicated /boot
-//
-// The four globs are tried in order; first non-empty match wins.
-// Cloud-boot-init's mount step always succeeds before we get here, so
-// every glob targets the actual mount point — we just don't yet know
-// whether the user gave us a rootfs (kernel under /boot) or a
-// dedicated /boot partition (kernel at the root of the mount).
-func resolveDiskKernel(override string) (string, error) {
-	if override != "" {
-		return mountAbs(override), nil
-	}
-	for _, glob := range []string{
-		filepath.Join(diskMount, "boot", "vmlinuz-*"),
-		filepath.Join(diskMount, "boot", "Image-*"),
-		filepath.Join(diskMount, "vmlinuz-*"),
-		filepath.Join(diskMount, "Image-*"),
-	} {
-		path, err := pickNewestFile(glob)
-		if err == nil && path != "" {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("no kernel found at %s/{boot/,}{vmlinuz-*,Image-*}", diskMount)
-}
-
-// resolveDiskInitrd mirrors resolveDiskKernel for the initrd, falling back
-// to pairing by the kernel's version suffix.
-func resolveDiskInitrd(override, kernel string) (string, error) {
-	if override != "" {
-		return mountAbs(override), nil
-	}
-	return pairInitrdWithKernel(kernel, fileExists)
-}
-
-// resolveDiskCmdline returns the cmdline to hand to the new kernel: the
-// explicit override if set, else /mnt/etc/kernel/cmdline if it exists, else
-// the empty string (the kernel falls back to its built-in CONFIG_CMDLINE).
-func resolveDiskCmdline(override string) string {
-	if override != "" {
-		return override
-	}
-	b, err := os.ReadFile(filepath.Join(diskMount, "etc", "kernel", "cmdline"))
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
-}
-
-// mountAbs interprets a user-supplied path either as an absolute path
-// rooted at the diskMount ("/boot/vmlinuz-X" → "/mnt/boot/vmlinuz-X") or
-// as already-rooted ("/mnt/boot/...") if the caller did the math themselves.
-func mountAbs(p string) string {
-	if strings.HasPrefix(p, diskMount+"/") || p == diskMount {
-		return p
-	}
-	return filepath.Join(diskMount, p)
-}
-
-func fileExists(p string) bool {
-	_, err := os.Stat(p)
-	return err == nil
-}
+// (The legacy resolveDiskKernel / resolveDiskInitrd / resolveDiskCmdline
+// + mountAbs / fileExists helpers were removed when runDisk pivoted from
+// unix.Mount + filesystem syscalls to the pure-Go go-filesystems drivers
+// — see disk_fs_linux.go for the replacement. pickNewestFile +
+// pairInitrdWithKernel remain in helpers.go because diskParamsFromCmdline-
+// flow tests still exercise them.)
