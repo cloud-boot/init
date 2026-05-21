@@ -89,10 +89,10 @@ func runDiskZFS(p diskParams) error {
 		return fmt.Errorf("mount zfs %s: %w", p.Device, err)
 	}
 
-	// Reboot sink expects diskMount to be populated with /boot/
-	// content — same contract as ext4/xfs/btrfs. The caller
-	// continues from here exactly as for those filesystems.
-	return runDiskMounted(p, diskMount)
+	// Mount succeeded. Caller (runDisk) drives the shared
+	// post-mount path (resolveDiskKernel / kexec.Load / …) via
+	// runDiskMounted, defined in disk_linux.go.
+	return nil
 }
 
 // zfsModuleAvailable returns true if either zfs is already loaded
@@ -170,12 +170,3 @@ func walkDir(root string, fn func(string)) error {
 	return nil
 }
 
-// runDiskMounted is the shared post-mount step that ext4/xfs/btrfs
-// also use (refactored out of runDisk in a follow-up). For now
-// it's a forward declaration — the actual logic lives at the
-// bottom of runDisk and will be lifted out when the ZFS branch
-// goes live. Until that refactor, this returns a clear error
-// telling the operator the ZFS path isn't yet wired.
-func runDiskMounted(p diskParams, mountpoint string) error {
-	return fmt.Errorf("zfs target %q: post-mount kernel+initrd staging not yet refactored (will share path with ext4/xfs/btrfs once disk_linux.go's mounted-disk logic is extracted)", p.Device)
-}

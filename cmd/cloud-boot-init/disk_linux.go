@@ -82,13 +82,15 @@ func runDisk(p diskParams) error {
 	// ZFS is special: p.Device is a dataset path
 	// (`rpool/ROOT/pve-1`), not a /dev/<name>, and mounting it
 	// requires modprobe zfs + zpool import + zfs mount via
-	// userspace zfsutils. The disk-zfs kernel variant ships the
-	// module + we'll bundle zpool/zfs in a follow-up; until
-	// then surface a clear actionable error instead of letting
-	// the kernel mount syscall fail with EINVAL ("no zfs fs
-	// type registered").
+	// userspace zfsutils — see runDiskZFS for the full sequence.
+	// On success the dataset is mounted at diskMount and we fall
+	// through to runDiskMounted; on failure the precondition
+	// errors are surfaced verbatim.
 	if p.FS == "zfs" {
-		return runDiskZFS(p)
+		if err := runDiskZFS(p); err != nil {
+			return err
+		}
+		return runDiskMounted(p)
 	}
 
 	// Resolve LABEL=… / UUID=… / PARTLABEL=… / PARTUUID=… to a real
@@ -109,9 +111,22 @@ func runDisk(p diskParams) error {
 	if err := unix.Mount(resolved, diskMount, p.FS, unix.MS_RDONLY, ""); err != nil {
 		return fmt.Errorf("mount %s: %w", resolved, err)
 	}
-	// We pass nothing to the next kernel via /mnt itself — kexec_file_load
-	// has the file content in memory by the time Boot() runs. Unmount on
-	// any non-boot exit path so userspace doesn't keep the disk pinned.
+	return runDiskMounted(p)
+}
+
+// runDiskMounted finishes the disk-target boot sequence once the
+// disk (or ZFS dataset) is mounted at `diskMount`. Locates the
+// kernel + initrd + cmdline on the mount, kexecs into them, and
+// arranges an unmount on the non-happy path so the disk doesn't
+// stay pinned.
+//
+// Shared by every fs= branch (ext4 / xfs / btrfs / zfs); the only
+// thing the caller varies is HOW the mount got there.
+func runDiskMounted(p diskParams) error {
+	// We pass nothing to the next kernel via diskMount itself —
+	// kexec_file_load has the file content in memory by the time
+	// Boot() runs. Unmount on any non-boot exit path so userspace
+	// doesn't keep the disk pinned.
 	defer func() { _ = unix.Unmount(diskMount, 0) }()
 
 	kPath, err := resolveDiskKernel(p.Kernel)
