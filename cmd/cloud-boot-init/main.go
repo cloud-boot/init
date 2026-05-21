@@ -18,7 +18,10 @@
 // Configuration read from the kernel command line:
 //
 //   OCI mode:
-//	cloudboot.plan=<ref>          OCI reference of an HCL boot plan (preferred)
+//	cloudboot.plan=<ref>          OCI reference of an HCL boot plan (preferred).
+//	                              When omitted, falls back to a plan baked into
+//	                              the initramfs at /etc/cloud-boot/plan.hcl
+//	                              (see cloud-boot build --plan-file).
 //	cloudboot.image=<ref>         legacy single-image mode (no plan)
 //	cloudboot.target=<name>       plan target selector (skips the menu)
 //	cloudboot.menu=0|1            force the interactive boot menu off / on
@@ -295,16 +298,30 @@ func verifyManifest(v *cosign.Verifier, c *oci.Client, ref *oci.Ref, mode string
 	return err
 }
 
+// embeddedPlanPath is where `cloud-boot build --plan-file <path>`
+// stamps the HCL plan inside the initramfs. resolveTarget falls
+// back to this file when no `cloudboot.plan=` is supplied on the
+// kernel cmdline, so an ISO can ship a self-contained menu that
+// works even before the network is up (the targets it references
+// can still pull artifacts from a registry — only the plan
+// document itself is local).
+const embeddedPlanPath = "/etc/cloud-boot/plan.hcl"
+
 // resolveTarget returns the chosen Target plus any plan-level DNS
 // override the caller should apply before the target's refs are
-// fetched. Three modes:
+// fetched. Four modes, tried in order:
 //
-//   - cloudboot.plan=<ref>  : fetch + decode the HCL plan, run target
-//                             selection, return the picked Target and
-//                             p.DNS so main() can re-write resolv.conf.
-//   - cloudboot.image=<ref> : synth a one-target "legacy-image" plan
-//                             with the ref as Index; no DNS override.
-//   - neither               : error.
+//   - cloudboot.plan=<ref>     : fetch + decode the HCL plan from
+//                                OCI. Runtime override beats the
+//                                embedded plan when set.
+//   - /etc/cloud-boot/plan.hcl : decode the plan baked into the
+//                                initramfs by `cloud-boot build
+//                                --plan-file`. No OCI round-trip;
+//                                works air-gapped for the menu
+//                                phase.
+//   - cloudboot.image=<ref>    : synth a one-target "legacy-image"
+//                                plan with the ref as Index.
+//   - none                     : error.
 //
 // facts (may be nil) is exposed to plan expressions as the "lldp"
 // variable. v (may be nil) verifies cosign signatures over the plan
@@ -329,19 +346,11 @@ func resolveTarget(c *oci.Client, cmd map[string]string, facts *lldp.Facts, v *c
 		if err != nil {
 			return nil, nil, err
 		}
-		p, err := plan.Decode(hclBytes, "plan.hcl", plan.EvalContext(runtime.GOARCH, facts))
-		if err != nil {
-			return nil, nil, err
-		}
-		name, err := selectTarget(p, cmd, runtime.GOARCH)
-		if err != nil {
-			return nil, nil, err
-		}
-		t, err := p.Pick(name, runtime.GOARCH)
-		if err != nil {
-			return nil, nil, err
-		}
-		return t, p.DNS, nil
+		return decodeAndPick(hclBytes, "plan.hcl", cmd, facts)
+	}
+	if hclBytes, err := os.ReadFile(embeddedPlanPath); err == nil {
+		log.Printf("plan: using embedded %s (%d bytes)", embeddedPlanPath, len(hclBytes))
+		return decodeAndPick(hclBytes, embeddedPlanPath, cmd, facts)
 	}
 	if imgRef := cmd["cloudboot.image"]; imgRef != "" {
 		// cloudboot.image= is a single-ref legacy shorthand; treat the
@@ -349,7 +358,26 @@ func resolveTarget(c *oci.Client, cmd map[string]string, facts *lldp.Facts, v *c
 		// multiple layers).
 		return &plan.Target{Name: "legacy-image", Index: imgRef}, nil, nil
 	}
-	return nil, nil, fmt.Errorf("missing cloudboot.plan= or cloudboot.image= on cmdline")
+	return nil, nil, fmt.Errorf("missing cloudboot.plan= / %s / cloudboot.image=", embeddedPlanPath)
+}
+
+// decodeAndPick is the shared HCL-decode + target-selection path,
+// used both by the OCI-fetched plan branch and the embedded plan
+// fallback in resolveTarget.
+func decodeAndPick(hclBytes []byte, filename string, cmd map[string]string, facts *lldp.Facts) (*plan.Target, []string, error) {
+	p, err := plan.Decode(hclBytes, filename, plan.EvalContext(runtime.GOARCH, facts))
+	if err != nil {
+		return nil, nil, err
+	}
+	name, err := selectTarget(p, cmd, runtime.GOARCH)
+	if err != nil {
+		return nil, nil, err
+	}
+	t, err := p.Pick(name, runtime.GOARCH)
+	if err != nil {
+		return nil, nil, err
+	}
+	return t, p.DNS, nil
 }
 
 // applyDNSOverride parses spec as a comma-separated list of IPs and,
