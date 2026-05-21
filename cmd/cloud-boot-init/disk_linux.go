@@ -79,6 +79,18 @@ func runDisk(p diskParams) error {
 		p.FS = "ext4"
 	}
 
+	// ZFS is special: p.Device is a dataset path
+	// (`rpool/ROOT/pve-1`), not a /dev/<name>, and mounting it
+	// requires modprobe zfs + zpool import + zfs mount via
+	// userspace zfsutils. The disk-zfs kernel variant ships the
+	// module + we'll bundle zpool/zfs in a follow-up; until
+	// then surface a clear actionable error instead of letting
+	// the kernel mount syscall fail with EINVAL ("no zfs fs
+	// type registered").
+	if p.FS == "zfs" {
+		return runDiskZFS(p)
+	}
+
 	// Resolve LABEL=… / UUID=… / PARTLABEL=… / PARTUUID=… to a real
 	// /dev/<name>. Same syntax as the kernel's `root=`. Literal /dev
 	// paths pass through unchanged.
