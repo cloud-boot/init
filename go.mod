@@ -3,6 +3,7 @@ module github.com/cloud-boot/init
 go 1.25.1
 
 require (
+	github.com/go-fde/luks v0.0.0
 	github.com/go-filesystems/btrfs v0.0.0
 	github.com/go-filesystems/ext4 v0.0.0
 	github.com/go-filesystems/interface v0.0.0
@@ -15,7 +16,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/vishvananda/netlink v1.3.0
 	github.com/zclconf/go-cty v1.13.0
-	golang.org/x/net v0.39.0
+	golang.org/x/net v0.52.0
 	golang.org/x/sys v0.44.0
 )
 
@@ -32,11 +33,12 @@ replace github.com/go-filesystems/btrfs => ../../../../../dev-temp/GitHub/mock/p
 
 replace github.com/go-filesystems/zfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/zfs
 
+replace github.com/go-fde/luks => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/luks
+
 require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
-	github.com/go-filesystems/interface v0.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect
@@ -45,8 +47,9 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
-	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
-	golang.org/x/tools v0.32.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 )

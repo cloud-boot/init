@@ -71,14 +71,19 @@ func stageBootBytes(kBytes, iBytes []byte) (string, string, error) {
 // produces /dev/vdaN, not /dev/vda), so partIndex=-1 just means
 // "treat the device path as a bare filesystem image".
 func openFS(p diskParams, devicePath string) (filesystem.Filesystem, error) {
-	// Bail early with a clear error if the device is LUKS-
-	// encrypted — letting ext4.Open(/Xfs/Btrfs.Open) plough on
-	// would produce "bad magic"/EINVAL and the operator would
-	// have no idea why. See disk_luks_linux.go for the
-	// detection + the upstream lib work needed to actually
-	// unlock + layer.
-	if err := checkNotLUKS(devicePath); err != nil {
-		return nil, err
+	// LUKS detection + passthrough to the encrypted opener.
+	// `cloudboot.disk.luks-passphrase=` (typically set via
+	// cloudboot.metadata.url so it doesn't leak via
+	// /proc/cmdline) supplies the unlock key. See
+	// disk_luks_linux.go for the layered open.
+	if detectLUKS(devicePath) {
+		// readCmdline re-parses /proc/cmdline to grab the LUKS
+		// passphrase. We avoid plumbing the full cmd map through
+		// runDisk so the disk path stays usable from the
+		// diskParamsFromCmdline entry (no plan, no passed map).
+		// Re-reading /proc/cmdline is cheap (< 4 KiB).
+		cmd, _ := readCmdline()
+		return openFSWithLUKS(p, devicePath, cmd["cloudboot.disk.luks-passphrase"])
 	}
 	switch p.FS {
 	case "", "ext4":

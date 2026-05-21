@@ -72,6 +72,13 @@
 //	cloudboot.disk.fs=<type>      filesystem type (default ext4)
 //	cloudboot.disk.kernel=<path>  pin a specific kernel (default: newest /boot/vmlinuz-*)
 //	cloudboot.disk.initrd=<path>  pin a specific initrd (default: paired with the kernel)
+//	cloudboot.disk.luks-passphrase=<p>  LUKS unlock key for an encrypted volume.
+//	                              Auto-detected via the LUKS magic at offset 0.
+//	                              Today only ext4-over-LUKS is wired; xfs/btrfs/zfs
+//	                              need the same upstream BlockDevice export
+//	                              (see memory:userland-fs-drivers). Set via
+//	                              cloudboot.metadata.url to avoid leaking the
+//	                              passphrase via /proc/cmdline.
 //	cloudboot.cmdline=<text>      forwarded as the new kernel's cmdline
 //
 // On any fatal error we sleep forever (PID 1 must not exit) so console logs
