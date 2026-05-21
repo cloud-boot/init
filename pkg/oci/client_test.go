@@ -1330,3 +1330,35 @@ func TestPushManifest_FailoverRewindsBody(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestApplyAuth_BearerTokenOverride verifies that a pre-set
+// c.BearerToken short-circuits the negotiated-token cache + basic
+// auth, sending its value as the Authorization header. Used by the
+// Keystone application-credential flow in cloud-boot-init: the
+// token minted from {AC id, AC secret} → /v3/auth/tokens becomes
+// the registry's Bearer for every request.
+func TestApplyAuth_BearerTokenOverride(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		fmt.Fprint(w, `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.cncf.oci.empty.v1+json","digest":"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a","size":2},"layers":[]}`)
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	withSingleEndpoint(t, u.Host)
+
+	c := NewClient()
+	c.BearerToken = "keystone-derived-token"
+	// Set Username/Password to confirm Bearer wins.
+	c.Username, c.Password = "should-not-be-used", "x"
+
+	ref := &Ref{Scheme: u.Scheme, Host: u.Host, Repo: "r", Reference: "tag"}
+	if _, _, err := c.PullManifest(ref); err != nil {
+		t.Fatal(err)
+	}
+	if gotAuth != "Bearer keystone-derived-token" {
+		t.Errorf("Authorization = %q, want Bearer keystone-derived-token", gotAuth)
+	}
+}

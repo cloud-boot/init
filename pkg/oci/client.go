@@ -102,6 +102,16 @@ type Client struct {
 	Username string
 	Password string
 
+	// BearerToken, when non-empty, is sent as
+	// `Authorization: Bearer <BearerToken>` on every request,
+	// short-circuiting the Docker Registry V2 token negotiation.
+	// Use case: the operator already has a token from an external
+	// auth flow (e.g. Keystone application-credential exchange)
+	// and wants the OCI client to reuse it across all registry
+	// hosts the plan references. Empty = fall through to the
+	// existing per-host fetchBearer / Basic auth paths.
+	BearerToken string
+
 	tokens map[string]string // host -> bearer token (cached)
 }
 
@@ -477,6 +487,13 @@ func isRetriableNetErr(err error) bool {
 }
 
 func (c *Client) applyAuth(ref *Ref, req *http.Request) {
+	// Operator-supplied bearer (e.g. from Keystone AC exchange)
+	// wins over both the cached negotiated token and basic auth —
+	// it's the authoritative credential for this VM session.
+	if c.BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.BearerToken)
+		return
+	}
 	if t, ok := c.tokens[ref.Host]; ok {
 		req.Header.Set("Authorization", "Bearer "+t)
 		return

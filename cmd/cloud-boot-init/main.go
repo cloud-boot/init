@@ -310,6 +310,15 @@ func newClient(cmd map[string]string) *oci.Client {
 	if p, ok := cmd["rd.cloudboot.pass"]; ok {
 		c.Password = p
 	}
+	// cloudboot.metadata.token (cmdline or set by the Keystone AC
+	// exchange earlier in main) doubles as the OCI registry bearer
+	// when the registry is Keystone-protected (Harbor with the
+	// keystone-auth plugin, Glance container artifacts behind a
+	// proxy, …). The token is shared across every host the plan
+	// references — fine, since it represents one VM identity.
+	if tok, ok := cmd["cloudboot.metadata.token"]; ok && tok != "" {
+		c.BearerToken = tok
+	}
 	return c
 }
 
