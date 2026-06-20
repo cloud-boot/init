@@ -41,8 +41,28 @@ import (
 	"os"
 	"strings"
 
+	filesystem "github.com/go-filesystems/interface"
 	fszfs "github.com/go-filesystems/zfs"
 )
+
+// zfsFileBackend adapts *os.File to fszfs.BlockBackend, the per-leg
+// backing interface OpenFromDevices expects. cloud-boot-init owns
+// the file handles (one per leg); the lib's pool dedupes Close calls
+// so the same backend appearing twice would not double-close.
+type zfsFileBackend struct{ f *os.File }
+
+func (o *zfsFileBackend) ReadAt(p []byte, off int64) (int, error)  { return o.f.ReadAt(p, off) }
+func (o *zfsFileBackend) WriteAt(p []byte, off int64) (int, error) { return o.f.WriteAt(p, off) }
+func (o *zfsFileBackend) Sync() error                              { return o.f.Sync() }
+func (o *zfsFileBackend) Truncate(size int64) error                { return o.f.Truncate(size) }
+func (o *zfsFileBackend) Close() error                             { return o.f.Close() }
+func (o *zfsFileBackend) Size() (int64, error) {
+	fi, err := o.f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
+}
 
 // runDiskZFS handles the fs="zfs" branch of a Disk target.
 //
@@ -67,15 +87,40 @@ func runDiskZFS(p diskParams) error {
 		return fmt.Errorf("zfs target: device %q must be a dataset path (e.g. rpool/ROOT/pve-1)", p.Device)
 	}
 
-	devPath, err := findZFSVdev(pool)
+	legs, err := findZFSVdevs(pool)
 	if err != nil {
 		return fmt.Errorf("zfs target %q: locating vdev for pool %q: %w", p.Device, pool, err)
 	}
-	log.Printf("zfs: pool %q found on %s; opening dataset %q", pool, devPath, datasetPath)
+	log.Printf("zfs: pool %q found on %v; opening dataset %q", pool, legs, datasetPath)
 
-	fs, err := fszfs.OpenDataset(devPath, -1, datasetPath)
-	if err != nil {
-		return fmt.Errorf("zfs open %s (dataset %q): %w", devPath, datasetPath, err)
+	var fs filesystem.Filesystem
+	if len(legs) == 1 {
+		// Single-vdev (or single-leg mirror open). Use the single-
+		// device path — cheaper and avoids spinning up the multi-
+		// vdev pool wrapper.
+		fs, err = fszfs.OpenDataset(legs[0], -1, datasetPath)
+		if err != nil {
+			return fmt.Errorf("zfs open %s (dataset %q): %w", legs[0], datasetPath, err)
+		}
+	} else {
+		// Multi-vdev (mirror with explicit all-leg open, or
+		// raidz1/2/3). Wrap each leg in an osFileBackend and feed
+		// to OpenFromDevices in vdev-id order.
+		backends := make([]fszfs.BlockBackend, 0, len(legs))
+		for _, leg := range legs {
+			f, oerr := os.OpenFile(leg, os.O_RDWR, 0o600)
+			if oerr != nil {
+				for _, b := range backends {
+					b.Close()
+				}
+				return fmt.Errorf("zfs open leg %s: %w", leg, oerr)
+			}
+			backends = append(backends, &zfsFileBackend{f: f})
+		}
+		fs, err = fszfs.OpenFromDevices(backends, -1, datasetPath)
+		if err != nil {
+			return fmt.Errorf("zfs OpenFromDevices (%d legs, dataset %q): %w", len(legs), datasetPath, err)
+		}
 	}
 	defer fs.Close()
 
@@ -116,44 +161,96 @@ func splitPoolAndDataset(devicePath string) (pool, dataset string) {
 	return devicePath, ""
 }
 
-// findZFSVdev scans the attached block devices (virtio-blk
-// children of the running VM) looking for a ZFS vdev label
-// whose pool-name nvpair matches `pool`. The library doesn't
-// expose label parsing yet, so we use a lightweight string-
-// match heuristic: read a small window at offset 16 KiB
-// (where the first vdev label's NVList starts on a 256 KiB
-// label) and look for "name=<pool>" in the XDR'd text.
-//
-// This is good enough for the typical single-vdev case (the
-// pool name appears in plain ASCII inside the XDR-encoded
-// nvlist). Multi-vdev pools would need a proper NVList
-// reader — see memory:zfs-root-support for the roadmap.
+// findZFSVdev scans the attached block devices looking for the
+// FIRST device whose vdev label names `pool`. Used for single-
+// vdev and mirror pools where one leg is sufficient.
 func findZFSVdev(pool string) (string, error) {
-	devices, err := listWholeDisks()
+	legs, err := findZFSVdevs(pool)
 	if err != nil {
 		return "", err
 	}
-	needle := []byte(pool)
+	return legs[0], nil
+}
+
+// findZFSVdevs returns ALL devices belonging to `pool` in the
+// vdev-id order required by fszfs.OpenFromDevices. For single-vdev
+// pools the slice has one entry. For mirror, any leg works but we
+// return the leg-0 entry first. For raidz the slice is in the
+// canonical id order so OpenFromDevices builds the right raidz
+// geometry.
+//
+// The leaf devices are discovered via fszfs.ProbeLabel which fully
+// decodes the vdev label NVList. Group by PoolName + PoolGUID;
+// within a pool sort by matching each leg's `ThisGUID` against the
+// top vdev's `LeafGUIDs` ordering.
+func findZFSVdevs(pool string) ([]string, error) {
+	devices, err := listWholeDisks()
+	if err != nil {
+		return nil, err
+	}
+	type candidate struct {
+		path string
+		info *fszfs.LabelInfo
+	}
+	var hits []candidate
 	for _, dev := range devices {
 		f, err := os.Open(dev)
 		if err != nil {
 			continue
 		}
-		buf := make([]byte, 32*1024) // first label's NVList region
-		_, err = f.ReadAt(buf, 16*1024)
+		info, err := fszfs.ProbeLabel(f, 0)
 		f.Close()
 		if err != nil {
 			continue
 		}
-		// The pool name shows up as raw ASCII inside the XDR
-		// nvpair payload (variable-length string after the
-		// 4-byte length prefix). Looking for the literal name
-		// near a "name" key minimises false positives.
-		if idx := indexOf(buf, []byte("name")); idx >= 0 && indexOfFrom(buf, needle, idx) > idx {
-			return dev, nil
+		if info.PoolName == pool {
+			hits = append(hits, candidate{dev, info})
 		}
 	}
-	return "", fmt.Errorf("no attached block device carries a ZFS vdev label naming pool %q", pool)
+	if len(hits) == 0 {
+		return nil, fmt.Errorf("no attached block device carries a ZFS vdev label naming pool %q", pool)
+	}
+	// Single-vdev pool: one leg.
+	first := hits[0].info
+	if len(first.LeafGUIDs) == 0 {
+		return []string{hits[0].path}, nil
+	}
+	// Multi-vdev pool: sort hits by their position in the top vdev's
+	// LeafGUIDs slice. Each leg's ThisGUID identifies its slot.
+	leafIdx := make(map[uint64]int, len(first.LeafGUIDs))
+	for i, g := range first.LeafGUIDs {
+		leafIdx[g] = i
+	}
+	out := make([]string, len(first.LeafGUIDs))
+	matched := 0
+	for _, h := range hits {
+		// Skip legs that don't belong to this pool (we already
+		// filtered by PoolName, but PoolGUID is the authoritative
+		// match for ambiguous renames).
+		if h.info.PoolGUID != first.PoolGUID {
+			continue
+		}
+		idx, ok := leafIdx[h.info.ThisGUID]
+		if !ok {
+			continue
+		}
+		if out[idx] != "" {
+			return nil, fmt.Errorf("zfs: pool %q: duplicate leg at id %d (%s and %s)", pool, idx, out[idx], h.path)
+		}
+		out[idx] = h.path
+		matched++
+	}
+	if matched != len(out) {
+		missing := []int{}
+		for i, p := range out {
+			if p == "" {
+				missing = append(missing, i)
+			}
+		}
+		return nil, fmt.Errorf("zfs: pool %q: missing %d leg(s) (indices %v); have %d, need %d",
+			pool, len(missing), missing, matched, len(out))
+	}
+	return out, nil
 }
 
 func indexOf(haystack, needle []byte) int {

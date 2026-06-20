@@ -101,9 +101,21 @@ func runDisk(p diskParams) error {
 	}
 	defer fs.Close()
 
-	kPath, iPath, err := extractAndStage(fs, p)
+	kPath, iPath, blsOpts, err := extractAndStage(fs, p)
 	if err != nil {
 		return err
+	}
+	// Prepend BLS-supplied per-generation cmdline tokens (e.g.
+	// NixOS's init=/nix/store/<hash>-init) BEFORE p.Cmdline so the
+	// kernel's later-wins parsing lets the operator's
+	// cloudboot.cmdline= override individual tokens if needed.
+	if blsOpts != "" {
+		merged := blsOpts
+		if p.Cmdline != "" {
+			merged += " " + p.Cmdline
+		}
+		log.Printf("disk-fs: merged cmdline = %q  (BLS=%q + override=%q)", merged, blsOpts, p.Cmdline)
+		p.Cmdline = merged
 	}
 	return kexecStaged(p, kPath, iPath)
 }

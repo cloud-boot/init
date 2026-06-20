@@ -8,3 +8,5 @@ bin/
 coverage.out
 coverage.html
 cover.out
+/cloud-boot-init
+cmd/cloud-boot-init/cloud-boot-init

@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 
+	systemdboot "github.com/go-bootloaders/systemd-boot"
 	fsbtrfs "github.com/go-filesystems/btrfs"
 	fsext4 "github.com/go-filesystems/ext4"
 	filesystem "github.com/go-filesystems/interface"
@@ -99,9 +100,42 @@ func openFS(p diskParams, devicePath string) (filesystem.Filesystem, error) {
 		}
 		return fs, nil
 	case "btrfs":
-		fs, err := fsbtrfs.Open(devicePath, -1)
+		// Multi-device discovery: btrfs can span N legs sharing the
+		// same on-disk fsid. RAID0 / RAID10 / RAID5 / RAID6 only read
+		// when every data-bearing leg is in the pool; SINGLE / DUP /
+		// RAID1 also work fine on a single leg, so the auto-discovery
+		// is best-effort and falls back to single-device open if no
+		// siblings are found. See disk_btrfs_linux.go:findBtrfsLegs.
+		legs, lerr := findBtrfsLegs(devicePath)
+		if lerr != nil || len(legs) <= 1 {
+			if lerr != nil {
+				log.Printf("btrfs: leg discovery on %s failed (%v); opening single-leg", devicePath, lerr)
+			}
+			fs, err := fsbtrfs.Open(devicePath, -1)
+			if err != nil {
+				return nil, fmt.Errorf("btrfs open %s: %w", devicePath, err)
+			}
+			return fs, nil
+		}
+		// Multi-device pool: open each leg via os.OpenFile and feed
+		// the slice to OpenFromDevices. The pool internally routes
+		// reads to the right leg based on each chunk's stripe layout.
+		log.Printf("btrfs: opening %d-leg pool primary=%s", len(legs), devicePath)
+		backends := make([]fsbtrfs.BlockBackend, 0, len(legs))
+		for _, leg := range legs {
+			f, err := os.OpenFile(leg, os.O_RDWR, 0o600)
+			if err != nil {
+				// Close any we already opened.
+				for _, b := range backends {
+					b.Close()
+				}
+				return nil, fmt.Errorf("btrfs open leg %s: %w", leg, err)
+			}
+			backends = append(backends, &btrfsFileBackend{f: f})
+		}
+		fs, err := fsbtrfs.OpenFromDevices(backends, -1)
 		if err != nil {
-			return nil, fmt.Errorf("btrfs open %s: %w", devicePath, err)
+			return nil, fmt.Errorf("btrfs OpenFromDevices (%d legs): %w", len(legs), err)
 		}
 		return fs, nil
 	default:
@@ -118,40 +152,84 @@ func openFS(p diskParams, devicePath string) (filesystem.Filesystem, error) {
 // per-distro heuristic as resolveDiskKernel used to do on the
 // kernel-mounted /mnt path, but driven through the FS interface
 // so it works against any pure-Go driver.
-func extractAndStage(fs filesystem.Filesystem, p diskParams) (string, string, error) {
+func extractAndStage(fs filesystem.Filesystem, p diskParams) (kStaged, iStaged, blsOpts string, err error) {
 	kPath := p.Kernel
+	iPath := p.Initrd
+	// First try systemd-boot's Boot Loader Specification entries
+	// (NixOS, Clear Linux, Fedora CoreOS, and any custom Arch /
+	// Gentoo install that picked systemd-boot over GRUB). The legacy
+	// /boot/{vmlinuz,Image}-* glob doesn't find those — the kernel
+	// path is content-addressed under /EFI/<distro>/<hash>-linux.efi
+	// and only the BLS entry knows where.
+	//
+	// Skipped when the plan provides explicit Kernel / Initrd paths.
+	if kPath == "" && iPath == "" {
+		if boot, bErr := systemdboot.Default(bootFSAdapter{fs}, "/boot"); bErr == nil && boot.LinuxPath != "" {
+			log.Printf("disk-fs: systemd-boot entry %q → linux=%s initrd=%s",
+				boot.EntryID, boot.LinuxPath, boot.InitrdPath)
+			kPath = boot.LinuxPath
+			iPath = boot.InitrdPath
+			// BLS Options carry per-generation cmdline tokens (e.g.
+			// NixOS's `init=/nix/store/<hash>-init` which the
+			// chained kernel needs to find PID 1). The caller
+			// prepends them to p.Cmdline so user-supplied tokens
+			// (cloudboot.cmdline=…) still win on the right-most
+			// occurrence per the kernel's later-wins parsing rule.
+			blsOpts = boot.Options
+		}
+	}
 	if kPath == "" {
-		path, err := pickKernelFromFS(fs)
-		if err != nil {
-			return "", "", err
+		path, pErr := pickKernelFromFS(fs)
+		if pErr != nil {
+			return "", "", "", pErr
 		}
 		kPath = path
 	}
-	iPath := p.Initrd
 	if iPath == "" {
-		path, err := pickInitrdFromFS(fs, kPath)
-		if err != nil {
-			return "", "", err
+		path, pErr := pickInitrdFromFS(fs, kPath)
+		if pErr != nil {
+			return "", "", "", pErr
 		}
 		iPath = path
 	}
 
 	log.Printf("disk-fs: reading kernel %q + initrd %q from filesystem", kPath, iPath)
-	kBytes, err := fs.ReadFile(kPath)
-	if err != nil {
-		return "", "", fmt.Errorf("read kernel %s: %w", kPath, err)
+	kBytes, rErr := fs.ReadFile(kPath)
+	if rErr != nil {
+		return "", "", "", fmt.Errorf("read kernel %s: %w", kPath, rErr)
 	}
-	iBytes, err := fs.ReadFile(iPath)
-	if err != nil {
-		return "", "", fmt.Errorf("read initrd %s: %w", iPath, err)
+	iBytes, rErr := fs.ReadFile(iPath)
+	if rErr != nil {
+		return "", "", "", fmt.Errorf("read initrd %s: %w", iPath, rErr)
 	}
 
-	kStaged, iStaged, err := stageBootBytes(kBytes, iBytes)
-	if err != nil {
-		return "", "", err
+	kStaged, iStaged, sErr := stageBootBytes(kBytes, iBytes)
+	if sErr != nil {
+		return "", "", "", sErr
 	}
 	log.Printf("disk-fs: staged kernel=%d B at %s, initrd=%d B at %s", len(kBytes), kStaged, len(iBytes), iStaged)
-	return kStaged, iStaged, nil
+	return kStaged, iStaged, blsOpts, nil
+}
+
+// bootFSAdapter wraps a filesystem.Filesystem (whose ListDir returns
+// []DirEntry) to satisfy systemdboot.FS (which wants []string —
+// systemd-boot only ever needs the name of each entries/*.conf file).
+type bootFSAdapter struct {
+	fs filesystem.Filesystem
+}
+
+func (b bootFSAdapter) ReadFile(p string) ([]byte, error) { return b.fs.ReadFile(p) }
+
+func (b bootFSAdapter) ListDir(p string) ([]string, error) {
+	entries, err := b.fs.ListDir(p)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.Name()
+	}
+	return names, nil
 }
 
 // pickKernelFromFS reproduces the legacy resolveDiskKernel glob

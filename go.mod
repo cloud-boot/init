@@ -1,8 +1,9 @@
 module github.com/cloud-boot/init
 
-go 1.25.1
+go 1.26.0
 
 require (
+	github.com/go-bootloaders/systemd-boot v0.0.0
 	github.com/go-fde/luks v0.0.0
 	github.com/go-filesystems/btrfs v0.0.0
 	github.com/go-filesystems/ext4 v0.0.0
@@ -23,22 +24,31 @@ require (
 // Local sibling checkouts — until the repos are published.
 replace github.com/go-coff/peln => ../../go-coff/peln
 
-replace github.com/go-filesystems/interface => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/interface
+replace github.com/go-filesystems/interface => ../../go-filesystems/interface
 
-replace github.com/go-filesystems/ext4 => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/ext4
+replace github.com/go-filesystems/ext4 => ../../go-filesystems/ext4
 
-replace github.com/go-filesystems/xfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/xfs
+replace github.com/go-filesystems/xfs => ../../go-filesystems/xfs
 
-replace github.com/go-filesystems/btrfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/btrfs
+replace github.com/go-filesystems/btrfs => ../../go-filesystems/btrfs
 
-replace github.com/go-filesystems/zfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/zfs
+replace github.com/go-filesystems/zfs => ../../go-filesystems/zfs
 
-replace github.com/go-fde/luks => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/luks
+replace github.com/go-fde/luks => ../../go-fde/luks
+
+replace github.com/go-encryptions/zfscrypt => ../../go-encryptions/zfscrypt
+
+replace github.com/go-encryptions/ccm => ../../go-encryptions/ccm
+
+replace github.com/go-bootloaders/systemd-boot => ../../go-bootloaders/systemd-boot
 
 require (
 	github.com/agext/levenshtein v1.2.1 // indirect
+	github.com/anchore/go-lzo v0.1.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
+	github.com/go-encryptions/ccm v0.0.0 // indirect
+	github.com/go-encryptions/zfscrypt v0.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect
