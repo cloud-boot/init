@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/go-bootloaders/systemd-boot v0.0.0-20260805205643-50020af3f326
 	github.com/go-fde/luks v0.0.0-20260806070309-cc203b30f980
-	github.com/go-filesystems/btrfs v0.0.0-20260806055646-9550ae87d70d
+	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0
 	github.com/go-filesystems/interface v0.1.0
 	github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc
