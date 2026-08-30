@@ -14,7 +14,7 @@ require (
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/klauspost/compress v1.19.2
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/vishvananda/netlink v1.3.0
 	github.com/zclconf/go-cty v1.13.0
 	golang.org/x/net v0.52.0
