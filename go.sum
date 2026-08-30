@@ -36,6 +36,8 @@ github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc h1:DbMP9lbgx+/7
 github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc/go.mod h1:EZxrQpldx5VV6ul2Ia5LbKczQleYPHijbHBpvQh0iBU=
 github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c h1:K0PV8qXOG93loN37yYgZW0mkilG9COCKKT6+i44ipJA=
 github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c/go.mod h1:Qi2YiNXnAfJuuJvuIzw3/90V/qjlpldcBws1hWcUT6o=
+github.com/go-filesystems/zfs v0.1.0 h1:o5ukV23KKdcqq/S1Iv4cgHFbt0REi9onYQLuYOED5Yk=
+github.com/go-filesystems/zfs v0.1.0/go.mod h1:Qi2YiNXnAfJuuJvuIzw3/90V/qjlpldcBws1hWcUT6o=
 github.com/go-test/deep v1.0.3 h1:ZrJSEWsXzPOxaZnFteGEfooLba+ju3FYIbOrS+rQd68=
 github.com/go-test/deep v1.0.3/go.mod h1:wGDj63lr65AM2AQyKZd/NYHGb0R+1RLqB8NKt3aSFNA=
 github.com/go-tpm2/attest v0.3.0 h1:0Fv441TL02P65BZyLklu384yhNsmuXhgw5nPd9Z+bYA=

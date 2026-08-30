@@ -9,7 +9,7 @@ require (
 	github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0
 	github.com/go-filesystems/interface v0.0.0-20260806072947-fad96472e2df
 	github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc
-	github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c
+	github.com/go-filesystems/zfs v0.1.0
 	github.com/hashicorp/hcl/v2 v2.21.0
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/klauspost/compress v1.18.6
