@@ -34,6 +34,8 @@ github.com/go-filesystems/uefi v0.0.0-20260622110039-8bad894e467d h1:nQ+nQXFdra2
 github.com/go-filesystems/uefi v0.0.0-20260622110039-8bad894e467d/go.mod h1:T4WSiZsRTn8KuQixDMRZchs/BIYEBuYU7KhMLkp2r/4=
 github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc h1:DbMP9lbgx+/7V+jNdIXUdc5QKB5qjWSta0b620/1cz8=
 github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc/go.mod h1:EZxrQpldx5VV6ul2Ia5LbKczQleYPHijbHBpvQh0iBU=
+github.com/go-filesystems/xfs v0.1.0 h1:Yu4AvZfCbQS9gJJ48t5+p45jZqcDLd+WpCOa3BkOGes=
+github.com/go-filesystems/xfs v0.1.0/go.mod h1:EZxrQpldx5VV6ul2Ia5LbKczQleYPHijbHBpvQh0iBU=
 github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c h1:K0PV8qXOG93loN37yYgZW0mkilG9COCKKT6+i44ipJA=
 github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c/go.mod h1:Qi2YiNXnAfJuuJvuIzw3/90V/qjlpldcBws1hWcUT6o=
 github.com/go-test/deep v1.0.3 h1:ZrJSEWsXzPOxaZnFteGEfooLba+ju3FYIbOrS+rQd68=
