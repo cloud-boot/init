@@ -20,6 +20,8 @@ github.com/go-fde/luks v0.0.0-20260806070309-cc203b30f980 h1:rduvPR5cMioNeBVvzve
 github.com/go-fde/luks v0.0.0-20260806070309-cc203b30f980/go.mod h1:M0UoCvKw5BRW3NuMxIraIQgVvo5qdC/9NRssuf4sIVA=
 github.com/go-filesystems/btrfs v0.0.0-20260806055646-9550ae87d70d h1:xsrzzSgYc37wvdSA1pOZZEqZDk0sIppWgoIiB92i9mU=
 github.com/go-filesystems/btrfs v0.0.0-20260806055646-9550ae87d70d/go.mod h1:72XQNezKSsUFjmiAN6zgM1W8oIzu9eEHm0IWc7Ei1Oo=
+github.com/go-filesystems/btrfs v0.1.0 h1:RmRRqqMkEWd+EkyWx37gqcFnNkG0TLDwl2k02ulLTiE=
+github.com/go-filesystems/btrfs v0.1.0/go.mod h1:0MEOYKSW9Uh4ajeG9vDhVGOheTaNQOK74TJzAyvYCdg=
 github.com/go-filesystems/detect v0.0.0-20260622114748-623b36231685 h1:nkzNjHTzx3CUrfE3DNIIxNXdAwn+KvU28PS7KhNiBP8=
 github.com/go-filesystems/detect v0.0.0-20260622114748-623b36231685/go.mod h1:OCGE1O8l2Z41PODXWkuJOin83ooqHWh439jSpOGWb/Q=
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260622114748-623b36231685 h1:QVsZalhjok0Hvwl8JKr7qwA7Dsb33LUb3iMs5WRhC9I=
