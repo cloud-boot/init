@@ -10,13 +10,13 @@ require (
 	github.com/go-filesystems/interface v0.0.0-20260806072947-fad96472e2df
 	github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc
 	github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c
-	github.com/hashicorp/hcl/v2 v2.21.0
+	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/klauspost/compress v1.18.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/vishvananda/netlink v1.3.0
-	github.com/zclconf/go-cty v1.13.0
+	github.com/zclconf/go-cty v1.16.3
 	golang.org/x/net v0.52.0
 	golang.org/x/sys v0.44.0
 )
@@ -42,7 +42,7 @@ require (
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
-	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
