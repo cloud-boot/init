@@ -12,7 +12,7 @@ require (
 	github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c
 	github.com/hashicorp/hcl/v2 v2.21.0
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
-	github.com/klauspost/compress v1.18.6
+	github.com/klauspost/compress v1.19.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/vishvananda/netlink v1.3.0
