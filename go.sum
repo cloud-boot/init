@@ -14,6 +14,8 @@ github.com/go-bootloaders/systemd-boot v0.0.0-20260805205643-50020af3f326 h1:kEo
 github.com/go-bootloaders/systemd-boot v0.0.0-20260805205643-50020af3f326/go.mod h1:OacZL0fALEVlKZHoC4zGtagYAnmmq3sgLBugvQ6P6qk=
 github.com/go-bootloaders/systemd-boot v0.0.0-20260830211406-80ff13aa5c2a h1:spRx02DzZaVX4ip0hfQ28mfNRmwDm33vkpCbgHWHIEU=
 github.com/go-bootloaders/systemd-boot v0.0.0-20260830211406-80ff13aa5c2a/go.mod h1:Nx+IDMFr+GoMe8L+yyB2JawUYSLgl5I+Mi3WGitCAOo=
+github.com/go-bootloaders/systemd-boot v0.0.0-20260831114511-da3c7fe932d7 h1:8O1qxiOw9/BsWGw67TLjGVLjG/VleZzuezYxDNdnqe8=
+github.com/go-bootloaders/systemd-boot v0.0.0-20260831114511-da3c7fe932d7/go.mod h1:u4wgOCqmR9VHn0mU6xA/Rdsd7JWlqBdhtfMMQXZ7yQk=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 h1:Gky3CPkbtx6TdLJKw/liSsljOz561HDE0gGXoABDObI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2/go.mod h1:0XHNptBliXAeC9Ikl/maTnmj6+VWeJ5vZElyTprdYWI=
 github.com/go-encryptions/xts v0.0.0-20260702212620-e9fe59a121e5 h1:p0heeHiJ+uMORaAAWbZqmKyYmwdO+52eR3Pk+vtyGq0=
@@ -38,6 +40,8 @@ github.com/go-filesystems/detect/fat32reg v0.0.0-20260622114748-623b36231685 h1:
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260622114748-623b36231685/go.mod h1:OwExJSTfw5Qm1/dvFFbQIZLeuE1GKQLJTHr+f/Xz+HM=
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260830075657-d6af36692ef3 h1:gi7pLhsbnivkGOFrRj0VBAOb5TpD/WDCXE6x5M68Gp4=
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260830075657-d6af36692ef3/go.mod h1:OwExJSTfw5Qm1/dvFFbQIZLeuE1GKQLJTHr+f/Xz+HM=
+github.com/go-filesystems/detect/fat32reg v0.0.0-20260830212401-3a77780fd6a6 h1:55hHU3oacqSnr4H2QUE4uLpkzTGDAVrKYuLdbHuC7vw=
+github.com/go-filesystems/detect/fat32reg v0.0.0-20260830212401-3a77780fd6a6/go.mod h1:fUUl4kah8tX+egYK1lQWkBTU6IFEA/uu+IjvybhnIj8=
 github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0 h1:Sc9mvWp+KgmmXW53CETKoGnRe/4MA+vF/kOyPGwegC4=
 github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0/go.mod h1:Iwpw3dvpRI8bikASYJNA+qplmeUG0oVN6+mfyEzvZ7M=
 github.com/go-filesystems/ext4 v0.2.0 h1:eQGvpY9xyl9VyxojtHrM6NPGQH+RC0m7axgqv1Bj2uc=

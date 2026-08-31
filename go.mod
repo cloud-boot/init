@@ -3,7 +3,7 @@ module github.com/cloud-boot/init
 go 1.26.4
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20260830211406-80ff13aa5c2a
+	github.com/go-bootloaders/systemd-boot v0.0.0-20260831114511-da3c7fe932d7
 	github.com/go-fde/luks v0.0.0-20260830211523-6cf5fe0027a4
 	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.2.0
@@ -31,7 +31,7 @@ require (
 	github.com/go-encryptions/xts v0.0.0-20260830124722-be3e6a7bf880 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-filesystems/detect v0.1.0 // indirect
-	github.com/go-filesystems/detect/fat32reg v0.0.0-20260830075657-d6af36692ef3 // indirect
+	github.com/go-filesystems/detect/fat32reg v0.0.0-20260830212401-3a77780fd6a6 // indirect
 	github.com/go-filesystems/fat32 v0.3.0 // indirect
 	github.com/go-filesystems/uefi v0.1.0 // indirect
 	github.com/go-tpm2/attest v0.3.0 // indirect
