@@ -16,6 +16,8 @@ github.com/go-bootloaders/systemd-boot v0.0.0-20260830211406-80ff13aa5c2a h1:spR
 github.com/go-bootloaders/systemd-boot v0.0.0-20260830211406-80ff13aa5c2a/go.mod h1:Nx+IDMFr+GoMe8L+yyB2JawUYSLgl5I+Mi3WGitCAOo=
 github.com/go-bootloaders/systemd-boot v0.0.0-20260831114511-da3c7fe932d7 h1:8O1qxiOw9/BsWGw67TLjGVLjG/VleZzuezYxDNdnqe8=
 github.com/go-bootloaders/systemd-boot v0.0.0-20260831114511-da3c7fe932d7/go.mod h1:u4wgOCqmR9VHn0mU6xA/Rdsd7JWlqBdhtfMMQXZ7yQk=
+github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23 h1:XP+I+eLwxOl0pRURs499ukpwj74wCAEUVtHW/4aYXlk=
+github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23/go.mod h1:/vGFDVABPeX+UcOM5cP9Kx6ZglklakzBBx5op2V6GG0=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 h1:Gky3CPkbtx6TdLJKw/liSsljOz561HDE0gGXoABDObI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2/go.mod h1:0XHNptBliXAeC9Ikl/maTnmj6+VWeJ5vZElyTprdYWI=
 github.com/go-encryptions/xts v0.0.0-20260702212620-e9fe59a121e5 h1:p0heeHiJ+uMORaAAWbZqmKyYmwdO+52eR3Pk+vtyGq0=
@@ -42,6 +44,8 @@ github.com/go-filesystems/detect/fat32reg v0.0.0-20260830075657-d6af36692ef3 h1:
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260830075657-d6af36692ef3/go.mod h1:OwExJSTfw5Qm1/dvFFbQIZLeuE1GKQLJTHr+f/Xz+HM=
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260830212401-3a77780fd6a6 h1:55hHU3oacqSnr4H2QUE4uLpkzTGDAVrKYuLdbHuC7vw=
 github.com/go-filesystems/detect/fat32reg v0.0.0-20260830212401-3a77780fd6a6/go.mod h1:fUUl4kah8tX+egYK1lQWkBTU6IFEA/uu+IjvybhnIj8=
+github.com/go-filesystems/detect/fat32reg v0.0.0-20260831153547-a065afc1e644 h1:py270IspF5qeSuPQ0EW7trEOKDoMjRgu7u4rzfReCqo=
+github.com/go-filesystems/detect/fat32reg v0.0.0-20260831153547-a065afc1e644/go.mod h1:Y3nZdzEiHE4uy7dzo/JZAS51JHPtm04dLSxm4+Uh/4Q=
 github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0 h1:Sc9mvWp+KgmmXW53CETKoGnRe/4MA+vF/kOyPGwegC4=
 github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0/go.mod h1:Iwpw3dvpRI8bikASYJNA+qplmeUG0oVN6+mfyEzvZ7M=
 github.com/go-filesystems/ext4 v0.2.0 h1:eQGvpY9xyl9VyxojtHrM6NPGQH+RC0m7axgqv1Bj2uc=
@@ -80,10 +84,14 @@ github.com/go-volumes/gpt v0.0.0-20260622100756-3721db1fbd05 h1:lIMMsOk/zC2LwsC9
 github.com/go-volumes/gpt v0.0.0-20260622100756-3721db1fbd05/go.mod h1:eBAzPkLd8zHkg3WiYGk70M4g6PYY8S5K4JP+kEMs0mw=
 github.com/go-volumes/gpt v0.0.0-20260830080217-f939ebaffdf6 h1:YgolUGkVNKbf1sM6fPh+WwDNhIhiai4XQ11FWHuBJDk=
 github.com/go-volumes/gpt v0.0.0-20260830080217-f939ebaffdf6/go.mod h1:eBAzPkLd8zHkg3WiYGk70M4g6PYY8S5K4JP+kEMs0mw=
+github.com/go-volumes/gpt v0.0.0-20260831115417-b3069a3ac03a h1:BOFd3NiCNWGkhr9+vxszNCLEFXfW7R7qPCtwsomYgSI=
+github.com/go-volumes/gpt v0.0.0-20260831115417-b3069a3ac03a/go.mod h1:eBAzPkLd8zHkg3WiYGk70M4g6PYY8S5K4JP+kEMs0mw=
 github.com/go-volumes/safeio v0.0.0-20260622072324-7f8eb19f6f8c h1:rOwNQiP0VPnyUcRjiVq9QTOCJkN9heon0325hZdFLaQ=
 github.com/go-volumes/safeio v0.0.0-20260622072324-7f8eb19f6f8c/go.mod h1:QQdGwEUmPSdzD+OPq+ZcKso9ljssqgBXNk0/9z7moho=
 github.com/go-volumes/safeio v0.0.0-20260830080216-c99e29c86f27 h1:EduBaCdy3n6ZuCdgEJeAN0PrVkfiPeTy0GAcb5Ej86Q=
 github.com/go-volumes/safeio v0.0.0-20260830080216-c99e29c86f27/go.mod h1:QQdGwEUmPSdzD+OPq+ZcKso9ljssqgBXNk0/9z7moho=
+github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 h1:RKO58FmZvbvKh6wf+7Y8gohGJ0/2hq4N8L+x2kT9bak=
+github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4/go.mod h1:QQdGwEUmPSdzD+OPq+ZcKso9ljssqgBXNk0/9z7moho=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/hashicorp/hcl/v2 v2.21.0 h1:lve4q/o/2rqwYOgUg3y3V2YPyD1/zkCLGjIV74Jit14=
@@ -105,6 +113,8 @@ github.com/klauspost/compress v1.18.6 h1:2jupLlAwFm95+YDR+NwD2MEfFO9d4z4Prjl1XXD
 github.com/klauspost/compress v1.18.6/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
 github.com/klauspost/compress v1.19.2/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
+github.com/klauspost/compress v1.20.0 h1:a3C1ke2ohxFymNlb2HWAHjDeKCI90scRskErZkR0ezA=
+github.com/klauspost/compress v1.20.0/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/mdlayher/packet v1.1.2 h1:3Up1NG6LZrsgDVn6X4L9Ge/iyRyxFEFD9o6Pr3Q1nQY=
 github.com/mdlayher/packet v1.1.2/go.mod h1:GEu1+n9sG5VtiRE4SydOmX5GTwyyYlteZiFU+x0kew4=
 github.com/mdlayher/socket v0.4.1 h1:eM9y2/jlbs1M615oshPQOHZzj6R6wMT7bX5NPiQvn2U=
