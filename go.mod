@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23
-	github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b
+	github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006
 	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.2.0
 	github.com/go-filesystems/interface v0.3.0
@@ -27,7 +27,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
-	github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 // indirect
+	github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-filesystems/detect v0.1.0 // indirect
 	github.com/go-filesystems/detect/fat32reg v0.0.0-20260831153547-a065afc1e644 // indirect

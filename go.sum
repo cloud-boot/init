@@ -12,12 +12,12 @@ github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23 h1:XP+
 github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23/go.mod h1:/vGFDVABPeX+UcOM5cP9Kx6ZglklakzBBx5op2V6GG0=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 h1:Gky3CPkbtx6TdLJKw/liSsljOz561HDE0gGXoABDObI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2/go.mod h1:0XHNptBliXAeC9Ikl/maTnmj6+VWeJ5vZElyTprdYWI=
-github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 h1:nH2Msy4l+mq7VLuMDhV8iGlFNX0kMiai4BBNJENQ3UQ=
-github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94/go.mod h1:IMkRCLbIbPslkb7X7+lkDG2xkugRjBJG5iax1jQc2gc=
+github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3 h1:G1Nbb8En0Z8mO45IrfTWKDPqrcNn8IURajlSSoQchPY=
+github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3/go.mod h1:8O6H8PrYGodJ5QdRET0VyaxBf/qVVK6HFpbIPfC+M9U=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed h1:WaqYbb5Ia613X8QRW8J7rPqTN5M0P57tAoRKf1xpRts=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed/go.mod h1:PzuGFDE4GvnezFgPEbaBdKFaPFsDdxIF8DpaqgdsvUQ=
-github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b h1:x3l6v6iJAtsB8CrRCEXpprFuRmv2wULFr6z+VaqKoh8=
-github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b/go.mod h1:UWLWKOUBDUEQlKjBWl6OZM3jeWlgn90s/oWuGVQatW0=
+github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006 h1:2QFNKReJQyDQhyczmP3j4/306tUxCilsTlrffGjlc5E=
+github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006/go.mod h1:XGYHLeVWPx3DszFPeGT1uPiwVS62zxW6aD7LwvvHMYY=
 github.com/go-filesystems/btrfs v0.1.0 h1:RmRRqqMkEWd+EkyWx37gqcFnNkG0TLDwl2k02ulLTiE=
 github.com/go-filesystems/btrfs v0.1.0/go.mod h1:0MEOYKSW9Uh4ajeG9vDhVGOheTaNQOK74TJzAyvYCdg=
 github.com/go-filesystems/detect v0.1.0 h1:DCiR5lLKFJ/kon8wKs1ueG1hX27wJaIHqym+Ai0Y/pU=
