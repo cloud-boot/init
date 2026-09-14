@@ -3,8 +3,8 @@ module github.com/cloud-boot/init
 go 1.26.4
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20260901144556-4193afeb7e23
-	github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006
+	github.com/go-bootloaders/systemd-boot v0.0.0-20260912202818-46e1070571b6
+	github.com/go-fde/luks v0.0.0-20260912170836-2b2fb274cfc5
 	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.2.0
 	github.com/go-filesystems/interface v0.3.0
@@ -27,7 +27,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
-	github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3 // indirect
+	github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-filesystems/detect v0.1.0 // indirect
 	github.com/go-filesystems/detect/fat32reg v0.0.0-20260831153547-a065afc1e644 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/go-tpm2/attest v0.3.0 // indirect
 	github.com/go-tpm2/common v0.1.0 // indirect
 	github.com/go-tpm2/tpm2 v0.6.0 // indirect
-	github.com/go-volumes/gpt v0.0.0-20260831115417-b3069a3ac03a // indirect
+	github.com/go-volumes/gpt v0.2.0 // indirect
 	github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
