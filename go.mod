@@ -10,7 +10,7 @@ require (
 	github.com/go-filesystems/interface v0.3.0
 	github.com/go-filesystems/xfs v0.1.0
 	github.com/go-filesystems/zfs v0.1.0
-	github.com/hashicorp/hcl/v2 v2.24.0
+	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/insomniacslk/dhcp v0.0.0-20260901064844-234b97448fae
 	github.com/klauspost/compress v1.20.0
 	github.com/opencontainers/go-digest v1.0.0
