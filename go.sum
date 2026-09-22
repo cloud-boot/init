@@ -16,8 +16,8 @@ github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 h1:jBKiKLifRmgS
 github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872/go.mod h1:RyAKGhEQaOsPSFLfKei/ouIPSxODN5so4PSa0SviRjI=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed h1:WaqYbb5Ia613X8QRW8J7rPqTN5M0P57tAoRKf1xpRts=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed/go.mod h1:PzuGFDE4GvnezFgPEbaBdKFaPFsDdxIF8DpaqgdsvUQ=
-github.com/go-fde/luks v0.0.0-20260912170836-2b2fb274cfc5 h1:XZ0JOK5BXoVZg8Pjw8qghdkLaHrwqshaIQaBFaftuOI=
-github.com/go-fde/luks v0.0.0-20260912170836-2b2fb274cfc5/go.mod h1:YPirWRCIKZ28EJ3I4VDaMyjbSTrms7bV44AiBq5Zzx0=
+github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb h1:tJlj5+utzVg5TIBsjTq9PfsYiJJFgvHQEvLoEvBmTqo=
+github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb/go.mod h1:YPirWRCIKZ28EJ3I4VDaMyjbSTrms7bV44AiBq5Zzx0=
 github.com/go-filesystems/btrfs v0.1.0 h1:RmRRqqMkEWd+EkyWx37gqcFnNkG0TLDwl2k02ulLTiE=
 github.com/go-filesystems/btrfs v0.1.0/go.mod h1:0MEOYKSW9Uh4ajeG9vDhVGOheTaNQOK74TJzAyvYCdg=
 github.com/go-filesystems/detect v0.1.0 h1:DCiR5lLKFJ/kon8wKs1ueG1hX27wJaIHqym+Ai0Y/pU=
