@@ -3,7 +3,7 @@
 # cloud-boot/init
 
 PID-1 Go binary embedded in the cloud-boot bootstrap initramfs. Once
-the firmware starts the UKI (built by [`../uki`](../uki)) this
+the firmware starts the UKI (built by [`../uki`](https://github.com/cloud-boot/uki)) this
 binary runs as `/init` and, depending on the cmdline, either:
 
 - fetches an HCL boot plan from an OCI registry and chain-boots a
@@ -13,7 +13,7 @@ binary runs as `/init` and, depending on the cmdline, either:
 
 The host-side toolchain that assembles the UKI itself (cross-compile
 init, build cpio.gz, build PE/UKI, build FAT ESP, build ISO) lives in
-the sibling [`cloud-boot/uki`](../uki) repo. Shared infrastructure
+the sibling [`cloud-boot/uki`](https://github.com/cloud-boot/uki) repo. Shared infrastructure
 (cpio writer, OCI v2 client) is exported here under `pkg/`.
 
 ```
@@ -46,7 +46,7 @@ the sibling [`cloud-boot/uki`](../uki) repo. Shared infrastructure
 | Path                 | Role |
 | -------------------- | ---- |
 | `cmd/cloud-boot-init` | PID 1 in the initramfs (Linux; cross-built for the target arch) |
-| `pkg/cpio`           | newc cpio writer (exported — also consumed by [../uki](../uki)) |
+| `pkg/cpio`           | newc cpio writer (exported — also consumed by [../uki](https://github.com/cloud-boot/uki)) |
 | `pkg/oci`            | OCI Distribution v2 client (exported — pull at boot, push from host) |
 | `internal/kexec`     | `kexec_file_load(2)` + `reboot(KEXEC)` wrapper |
 | `internal/netconf`   | netlink link-up + DHCPv4 |
@@ -56,7 +56,7 @@ the sibling [`cloud-boot/uki`](../uki) repo. Shared infrastructure
 | `examples/plan.hcl`  | Sample boot plan |
 
 The host-side UKI assembly logic and the OCI push CLI moved to
-[`../uki`](../uki) — `cloud-boot-build` and `cloud-boot-push`. The
+[`../uki`](https://github.com/cloud-boot/uki) — `cloud-boot-build` and `cloud-boot-push`. The
 pure-Go PE/COFF section appender stays in its own module
 [`github.com/go-coff/pe`](https://github.com/go-coff/pe); during local
 development a `replace` directive in [go.mod](go.mod) points at the
