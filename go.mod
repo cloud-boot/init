@@ -3,7 +3,7 @@ module github.com/cloud-boot/init
 go 1.26.4
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20260912202818-46e1070571b6
+	github.com/go-bootloaders/systemd-boot v0.0.0-20260925212652-8d99f63bb34e
 	github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb
 	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.2.0
@@ -12,7 +12,7 @@ require (
 	github.com/go-filesystems/zfs v0.1.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/insomniacslk/dhcp v0.0.0-20260901064844-234b97448fae
-	github.com/klauspost/compress v1.20.0
+	github.com/klauspost/compress v1.20.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/vishvananda/netlink v1.3.1
@@ -30,8 +30,8 @@ require (
 	github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-filesystems/detect v0.1.0 // indirect
-	github.com/go-filesystems/detect/fat32reg v0.0.0-20260831153547-a065afc1e644 // indirect
-	github.com/go-filesystems/fat32 v0.3.0 // indirect
+	github.com/go-filesystems/detect/fat32reg v0.0.0-20260924074345-06b9ae35d98d // indirect
+	github.com/go-filesystems/fat32 v0.4.0 // indirect
 	github.com/go-filesystems/uefi v0.1.0 // indirect
 	github.com/go-tpm2/attest v0.3.0 // indirect
 	github.com/go-tpm2/common v0.1.0 // indirect
