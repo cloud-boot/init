@@ -3,7 +3,7 @@ module github.com/cloud-boot/init
 go 1.26.4
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20260925212652-8d99f63bb34e
+	github.com/go-bootloaders/systemd-boot v0.0.0-20260929220925-afcec38b9e2e
 	github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb
 	github.com/go-filesystems/btrfs v0.1.0
 	github.com/go-filesystems/ext4 v0.2.0
@@ -35,7 +35,7 @@ require (
 	github.com/go-filesystems/uefi v0.1.0 // indirect
 	github.com/go-tpm2/attest v0.3.0 // indirect
 	github.com/go-tpm2/common v0.1.0 // indirect
-	github.com/go-tpm2/tpm2 v0.6.0 // indirect
+	github.com/go-tpm2/tpm2 v0.7.0 // indirect
 	github.com/go-volumes/gpt v0.2.0 // indirect
 	github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
