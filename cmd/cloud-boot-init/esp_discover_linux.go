@@ -119,10 +119,10 @@ func findESPDevice() (string, error) {
 	}
 
 	type candidate struct {
-		path     string
-		first    uint64
-		last     uint64
-		gptName  string
+		path    string
+		first   uint64
+		last    uint64
+		gptName string
 	}
 	var all []candidate
 	for _, d := range disks {

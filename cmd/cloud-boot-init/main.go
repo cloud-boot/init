@@ -10,76 +10,76 @@
 // Two boot paths share the same init binary and are selected by the
 // kernel command line:
 //
-//   1. **Network / OCI**: fetch an HCL boot plan (or a single image) from
-//      an OCI registry, pull kernel+initrd+modules, kexec.
-//   2. **Local disk**: mount a virtio-blk device, find the distro's own
-//      kernel + initrd under /boot, kexec. No network needed.
+//  1. **Network / OCI**: fetch an HCL boot plan (or a single image) from
+//     an OCI registry, pull kernel+initrd+modules, kexec.
+//  2. **Local disk**: mount a virtio-blk device, find the distro's own
+//     kernel + initrd under /boot, kexec. No network needed.
 //
 // Configuration read from the kernel command line:
 //
-//   OCI mode:
-//	cloudboot.plan=<ref>          OCI reference of an HCL boot plan (preferred).
-//	                              When omitted, falls back to a plan baked into
-//	                              the initramfs at /etc/cloud-boot/plan.hcl
-//	                              (see cloud-boot build --plan-file). Plan
-//	                              targets may carry subplan="<oci-ref>" to chain
-//	                              into a nested plan (up to 8 levels).
-//	cloudboot.image=<ref>         legacy single-image mode (no plan)
-//	cloudboot.metadata.url=<url>  optional: fetch a JSON doc at boot whose
-//	                              `cloudboot` block overrides cmdline knobs.
-//	                              OpenStack-friendly (point at the metadata
-//	                              service or a per-instance proxy).
-//	cloudboot.metadata.token=<t>  optional Bearer token sent with the metadata
-//	                              fetch — for private endpoints. Auto-set
-//	                              when an OpenStack AC exchange succeeds.
+//	  OCI mode:
+//		cloudboot.plan=<ref>          OCI reference of an HCL boot plan (preferred).
+//		                              When omitted, falls back to a plan baked into
+//		                              the initramfs at /etc/cloud-boot/plan.hcl
+//		                              (see cloud-boot build --plan-file). Plan
+//		                              targets may carry subplan="<oci-ref>" to chain
+//		                              into a nested plan (up to 8 levels).
+//		cloudboot.image=<ref>         legacy single-image mode (no plan)
+//		cloudboot.metadata.url=<url>  optional: fetch a JSON doc at boot whose
+//		                              `cloudboot` block overrides cmdline knobs.
+//		                              OpenStack-friendly (point at the metadata
+//		                              service or a per-instance proxy).
+//		cloudboot.metadata.token=<t>  optional Bearer token sent with the metadata
+//		                              fetch — for private endpoints. Auto-set
+//		                              when an OpenStack AC exchange succeeds.
 //
-//	OpenStack Keystone application-credential auth (optional):
-//	cloudboot.openstack.auth-url=<https://keystone:5000/v3>
-//	cloudboot.openstack.app-cred-id=<uuid>
-//	cloudboot.openstack.app-cred-secret=<secret>
-//	  When all three are set, init POSTs to {auth-url}/auth/tokens
-//	  with the AC creds, captures the X-Subject-Token header, and
-//	  stuffs it into cloudboot.metadata.token so the downstream
-//	  metadata fetch (and future Bearer-aware OCI client) reuse it.
-//	cloudboot.target=<name>       plan target selector (skips the menu)
-//	cloudboot.menu=0|1            force the interactive boot menu off / on
-//	cloudboot.menu.timeout=<dur>  override the plan's menu.timeout ("5s", "10")
-//	cloudboot.menu.prompt=<text>  override the plan's menu prompt header
-//	cloudboot.keymap=<layout>     load a console keymap before the menu
-//	                              (default "" = kernel's compiled-in US-QWERTY;
-//	                              supported: "fr" PC AZERTY, "fr-mac" Apple AZERTY).
-//	cloudboot.cmdline=<text>      override the cmdline passed to the downloaded kernel
-//	cloudboot.insecure=1          allow plain HTTP for the plan reference
-//	cloudboot.lldp=0              disable LLDP listen + transmit
-//	cloudboot.lldp.wait=<dur>     how long to wait for an LLDP neighbor (default 10s)
-//	cloudboot.lldp.tx=0           disable LLDP transmit only
-//	cloudboot.lldp.name=<text>    LLDP system-name advertised by this host
-//	cloudboot.cosign=enforce|warn|off  policy when /etc/cosign.pub is present
-//	                          (default: enforce; warn logs and continues;
-//	                          off disables signature checks entirely)
-//	cloudboot.dns=ip[,ip...]  override the DHCP-supplied resolvers before
-//	                          the plan-fetch SRV lookup. Useful when the
-//	                          plan registry only resolves via a private
-//	                          DNS (dev SRV records, internal CoreDNS …).
-//	                          Takes precedence over the plan's `dns = []`
-//	                          field.
-//	ip=<klibc spec>           static IPv4 instead of DHCP
-//	rd.cloudboot.user=...     registry basic-auth user
-//	rd.cloudboot.pass=...     registry basic-auth pass
+//		OpenStack Keystone application-credential auth (optional):
+//		cloudboot.openstack.auth-url=<https://keystone:5000/v3>
+//		cloudboot.openstack.app-cred-id=<uuid>
+//		cloudboot.openstack.app-cred-secret=<secret>
+//		  When all three are set, init POSTs to {auth-url}/auth/tokens
+//		  with the AC creds, captures the X-Subject-Token header, and
+//		  stuffs it into cloudboot.metadata.token so the downstream
+//		  metadata fetch (and future Bearer-aware OCI client) reuse it.
+//		cloudboot.target=<name>       plan target selector (skips the menu)
+//		cloudboot.menu=0|1            force the interactive boot menu off / on
+//		cloudboot.menu.timeout=<dur>  override the plan's menu.timeout ("5s", "10")
+//		cloudboot.menu.prompt=<text>  override the plan's menu prompt header
+//		cloudboot.keymap=<layout>     load a console keymap before the menu
+//		                              (default "" = kernel's compiled-in US-QWERTY;
+//		                              supported: "fr" PC AZERTY, "fr-mac" Apple AZERTY).
+//		cloudboot.cmdline=<text>      override the cmdline passed to the downloaded kernel
+//		cloudboot.insecure=1          allow plain HTTP for the plan reference
+//		cloudboot.lldp=0              disable LLDP listen + transmit
+//		cloudboot.lldp.wait=<dur>     how long to wait for an LLDP neighbor (default 10s)
+//		cloudboot.lldp.tx=0           disable LLDP transmit only
+//		cloudboot.lldp.name=<text>    LLDP system-name advertised by this host
+//		cloudboot.cosign=enforce|warn|off  policy when /etc/cosign.pub is present
+//		                          (default: enforce; warn logs and continues;
+//		                          off disables signature checks entirely)
+//		cloudboot.dns=ip[,ip...]  override the DHCP-supplied resolvers before
+//		                          the plan-fetch SRV lookup. Useful when the
+//		                          plan registry only resolves via a private
+//		                          DNS (dev SRV records, internal CoreDNS …).
+//		                          Takes precedence over the plan's `dns = []`
+//		                          field.
+//		ip=<klibc spec>           static IPv4 instead of DHCP
+//		rd.cloudboot.user=...     registry basic-auth user
+//		rd.cloudboot.pass=...     registry basic-auth pass
 //
-//   Disk mode (selected when cloudboot.disk= is present):
-//	cloudboot.disk=<device>       device to mount, e.g. /dev/vda2
-//	cloudboot.disk.fs=<type>      filesystem type (default ext4)
-//	cloudboot.disk.kernel=<path>  pin a specific kernel (default: newest /boot/vmlinuz-*)
-//	cloudboot.disk.initrd=<path>  pin a specific initrd (default: paired with the kernel)
-//	cloudboot.disk.luks-passphrase=<p>  LUKS unlock key for an encrypted volume.
-//	                              Auto-detected via the LUKS magic at offset 0.
-//	                              Today only ext4-over-LUKS is wired; xfs/btrfs/zfs
-//	                              need the same upstream BlockDevice export
-//	                              (see memory:userland-fs-drivers). Set via
-//	                              cloudboot.metadata.url to avoid leaking the
-//	                              passphrase via /proc/cmdline.
-//	cloudboot.cmdline=<text>      forwarded as the new kernel's cmdline
+//	  Disk mode (selected when cloudboot.disk= is present):
+//		cloudboot.disk=<device>       device to mount, e.g. /dev/vda2
+//		cloudboot.disk.fs=<type>      filesystem type (default ext4)
+//		cloudboot.disk.kernel=<path>  pin a specific kernel (default: newest /boot/vmlinuz-*)
+//		cloudboot.disk.initrd=<path>  pin a specific initrd (default: paired with the kernel)
+//		cloudboot.disk.luks-passphrase=<p>  LUKS unlock key for an encrypted volume.
+//		                              Auto-detected via the LUKS magic at offset 0.
+//		                              Today only ext4-over-LUKS is wired; xfs/btrfs/zfs
+//		                              need the same upstream BlockDevice export
+//		                              (see memory:userland-fs-drivers). Set via
+//		                              cloudboot.metadata.url to avoid leaking the
+//		                              passphrase via /proc/cmdline.
+//		cloudboot.cmdline=<text>      forwarded as the new kernel's cmdline
 //
 // On any fatal error we sleep forever (PID 1 must not exit) so console logs
 // stay visible.
@@ -108,8 +108,8 @@ import (
 	"github.com/cloud-boot/init/internal/lldp"
 	"github.com/cloud-boot/init/internal/menu"
 	"github.com/cloud-boot/init/internal/netconf"
-	"github.com/cloud-boot/init/pkg/oci"
 	"github.com/cloud-boot/init/internal/plan"
+	"github.com/cloud-boot/init/pkg/oci"
 )
 
 const downloadDir = "/run/cloud-boot"
@@ -390,15 +390,15 @@ const maxSubplanDepth = 8
 // fetched. Four modes, tried in order:
 //
 //   - cloudboot.plan=<ref>     : fetch + decode the HCL plan from
-//                                OCI. Runtime override beats the
-//                                embedded plan when set.
+//     OCI. Runtime override beats the
+//     embedded plan when set.
 //   - /etc/cloud-boot/plan.hcl : decode the plan baked into the
-//                                initramfs by `cloud-boot build
-//                                --plan-file`. No OCI round-trip;
-//                                works air-gapped for the menu
-//                                phase.
+//     initramfs by `cloud-boot build
+//     --plan-file`. No OCI round-trip;
+//     works air-gapped for the menu
+//     phase.
 //   - cloudboot.image=<ref>    : synth a one-target "legacy-image"
-//                                plan with the ref as Index.
+//     plan with the ref as Index.
 //   - none                     : error.
 //
 // facts (may be nil) is exposed to plan expressions as the "lldp"
@@ -1439,4 +1439,3 @@ func mountPseudoFS() error {
 	}
 	return nil
 }
-

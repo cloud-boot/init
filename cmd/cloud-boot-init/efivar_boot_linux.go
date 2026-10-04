@@ -64,10 +64,10 @@ const (
 	efiGlobalGUID = "8be4df61-93ca-11d2-aa0d-00e098032b8c"
 
 	// Attribute bits for a Boot#### variable.
-	efiAttrNonVolatile      uint32 = 0x00000001
-	efiAttrBootServAccess   uint32 = 0x00000002
-	efiAttrRuntimeAccess    uint32 = 0x00000004
-	efiAttrsNVBSRT          uint32 = efiAttrNonVolatile | efiAttrBootServAccess | efiAttrRuntimeAccess
+	efiAttrNonVolatile    uint32 = 0x00000001
+	efiAttrBootServAccess uint32 = 0x00000002
+	efiAttrRuntimeAccess  uint32 = 0x00000004
+	efiAttrsNVBSRT        uint32 = efiAttrNonVolatile | efiAttrBootServAccess | efiAttrRuntimeAccess
 
 	// LoadOption.Attributes bits.
 	loadOptionActive uint32 = 0x00000001

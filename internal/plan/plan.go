@@ -62,7 +62,7 @@ import (
 
 // Plan is the decoded top-level HCL document.
 type Plan struct {
-	DefaultTarget string   `hcl:"default_target,optional"`
+	DefaultTarget string `hcl:"default_target,optional"`
 	// DNS lists IP addresses to write into /etc/resolv.conf after the
 	// plan has been parsed, replacing whatever DHCP supplied. Useful
 	// when the plan's target refs sit behind an SRV name that only
@@ -70,9 +70,9 @@ type Plan struct {
 	// guest with public DNS, fetch the plan, then switch to the dev
 	// DNS for the target/modloop fetches). `cloudboot.dns=ip,ip,...`
 	// on the kernel cmdline takes precedence over this field.
-	DNS           []string `hcl:"dns,optional"`
-	Menu          *Menu    `hcl:"menu,block"`
-	Targets       []Target `hcl:"target,block"`
+	DNS     []string `hcl:"dns,optional"`
+	Menu    *Menu    `hcl:"menu,block"`
+	Targets []Target `hcl:"target,block"`
 }
 
 // Menu configures the interactive boot-time chooser. When nil (block absent
@@ -156,10 +156,10 @@ type Target struct {
 // read-only, picks Kernel (or the newest /boot/vmlinuz-*) and Initrd (paired
 // with the kernel by version suffix), then kexecs with Target.Cmdline.
 type Disk struct {
-	Device string `hcl:"device"`           // e.g. "/dev/vda2" (required)
-	FS     string `hcl:"fs,optional"`      // filesystem; defaults to ext4
-	Kernel string `hcl:"kernel,optional"`  // path on the mounted disk; default newest /boot/vmlinuz-*
-	Initrd string `hcl:"initrd,optional"`  // path on the mounted disk; default paired with kernel
+	Device string `hcl:"device"`          // e.g. "/dev/vda2" (required)
+	FS     string `hcl:"fs,optional"`     // filesystem; defaults to ext4
+	Kernel string `hcl:"kernel,optional"` // path on the mounted disk; default newest /boot/vmlinuz-*
+	Initrd string `hcl:"initrd,optional"` // path on the mounted disk; default paired with kernel
 }
 
 // Decode parses HCL bytes; filename governs the parser (must end in .hcl or .json).

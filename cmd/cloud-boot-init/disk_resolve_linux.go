@@ -100,9 +100,9 @@ func findFS(match func(*fsLabel) bool) (string, error) {
 // ─── GPT (PARTLABEL / PARTUUID) ───────────────────────────────────────
 
 const (
-	gptHeaderLBA   = 1
-	gptSectorSize  = 512
-	gptSigASCII    = "EFI PART"
+	gptHeaderLBA    = 1
+	gptSectorSize   = 512
+	gptSigASCII     = "EFI PART"
 	gptEntrySizeMin = 128 // entries are usually exactly 128 bytes
 )
 

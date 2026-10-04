@@ -68,17 +68,17 @@ func (o *zfsFileBackend) Size() (int64, error) {
 //
 // Steps:
 //
-//	1. Resolve the BLOCK device that hosts the pool. The plan's
-//	   Disk.Device is "<pool>/<dataset...>"; cloud-boot can't know
-//	   which physical device that maps to without a directory scan.
-//	   The pool's vdev label sits at byte 0 of one of the attached
-//	   virtio-blk devices; we walk /sys/block and probe each.
-//	2. Open the dataset via fszfs.OpenDataset(devPath, -1, path).
-//	3. Read Disk.Kernel + Disk.Initrd via the FS interface, stage
-//	   them under downloadDir as regular files.
-//	4. Hand off to runDiskMounted via a small adapter — set
-//	   p.Kernel + p.Initrd to the staged paths and clear p.Device
-//	   so the existing flow doesn't try a kernel mount(2).
+//  1. Resolve the BLOCK device that hosts the pool. The plan's
+//     Disk.Device is "<pool>/<dataset...>"; cloud-boot can't know
+//     which physical device that maps to without a directory scan.
+//     The pool's vdev label sits at byte 0 of one of the attached
+//     virtio-blk devices; we walk /sys/block and probe each.
+//  2. Open the dataset via fszfs.OpenDataset(devPath, -1, path).
+//  3. Read Disk.Kernel + Disk.Initrd via the FS interface, stage
+//     them under downloadDir as regular files.
+//  4. Hand off to runDiskMounted via a small adapter — set
+//     p.Kernel + p.Initrd to the staged paths and clear p.Device
+//     so the existing flow doesn't try a kernel mount(2).
 func runDiskZFS(p diskParams) error {
 	// Disk.Device convention for ZFS: "<pool>/<rest>" or just
 	// "<pool>" for the pool root.
