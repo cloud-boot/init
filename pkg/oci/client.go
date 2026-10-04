@@ -260,8 +260,8 @@ func isIndex(raw []byte, contentType string) bool {
 		return true
 	}
 	var probe struct {
-		MediaType string                 `json:"mediaType"`
-		Manifests []ocispec.Descriptor   `json:"manifests"`
+		MediaType string               `json:"mediaType"`
+		Manifests []ocispec.Descriptor `json:"manifests"`
 	}
 	if err := json.Unmarshal(raw, &probe); err != nil {
 		return false

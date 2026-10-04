@@ -1,6 +1,6 @@
 module github.com/cloud-boot/init
 
-go 1.26.4
+go 1.27.1
 
 require (
 	github.com/go-bootloaders/systemd-boot v0.0.0-20260929220925-afcec38b9e2e

@@ -34,7 +34,7 @@ func wrapZBoot(t *testing.T, compType string, compressed []byte) []byte {
 	var hdr [56]byte
 	copy(hdr[0:4], []byte{0x4D, 0x5A, 0, 0})       // "MZ\0\0"
 	copy(hdr[4:8], []byte{0x7A, 0x69, 0x6D, 0x67}) // "zimg"
-	binary.LittleEndian.PutUint32(hdr[8:12], 56)    // payload follows hdr
+	binary.LittleEndian.PutUint32(hdr[8:12], 56)   // payload follows hdr
 	binary.LittleEndian.PutUint32(hdr[12:16], uint32(len(compressed)))
 	copy(hdr[24:56], []byte(compType))
 	return append(hdr[:], compressed...)

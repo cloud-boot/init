@@ -37,10 +37,10 @@ func TestSplitCmdline_Empty(t *testing.T) {
 
 func TestSanitize(t *testing.T) {
 	cases := map[string]string{
-		"sha256:abc/def":    "sha256_abc_def",
-		"plain.name-1":      "plain.name-1",
-		"with space":        "with_space",
-		"_underscores_ok_":  "_underscores_ok_",
+		"sha256:abc/def":   "sha256_abc_def",
+		"plain.name-1":     "plain.name-1",
+		"with space":       "with_space",
+		"_underscores_ok_": "_underscores_ok_",
 	}
 	for in, want := range cases {
 		if got := sanitize(in); got != want {

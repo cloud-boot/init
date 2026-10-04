@@ -95,15 +95,15 @@ var frAzerty = []keymapEntry{
 	{44, [4]uint16{'w', 'W', 0, 0}}, // KEY_Z → w
 	{39, [4]uint16{'m', 'M', 0, 0}}, // KEY_SEMICOLON → m
 	// , . / shift one slot left under AZERTY.
-	{50, [4]uint16{',', '?', 0, 0}},                  // KEY_M → ,
-	{51, [4]uint16{';', '.', 0, 0}},                  // KEY_COMMA → ;
-	{52, [4]uint16{':', '/', 0, 0}},                  // KEY_DOT → :
-	{53, [4]uint16{'!', 0xa7 /*§*/, 0, 0}},           // KEY_SLASH → !
-	{40, [4]uint16{0xf9 /*ù*/, '%', 0, 0}},           // KEY_APOSTROPHE
-	{41, [4]uint16{0xb2 /*²*/, 0, 0, 0}},             // KEY_GRAVE
-	{26, [4]uint16{'^', 0xa8 /*¨*/, 0, 0}},           // KEY_LEFTBRACE
-	{27, [4]uint16{'$', 0xa3 /*£*/, 0, 0}},           // KEY_RIGHTBRACE
-	{43, [4]uint16{'*', 0xb5 /*µ*/, 0, 0}},           // KEY_BACKSLASH
+	{50, [4]uint16{',', '?', 0, 0}},        // KEY_M → ,
+	{51, [4]uint16{';', '.', 0, 0}},        // KEY_COMMA → ;
+	{52, [4]uint16{':', '/', 0, 0}},        // KEY_DOT → :
+	{53, [4]uint16{'!', 0xa7 /*§*/, 0, 0}}, // KEY_SLASH → !
+	{40, [4]uint16{0xf9 /*ù*/, '%', 0, 0}}, // KEY_APOSTROPHE
+	{41, [4]uint16{0xb2 /*²*/, 0, 0, 0}},   // KEY_GRAVE
+	{26, [4]uint16{'^', 0xa8 /*¨*/, 0, 0}}, // KEY_LEFTBRACE
+	{27, [4]uint16{'$', 0xa3 /*£*/, 0, 0}}, // KEY_RIGHTBRACE
+	{43, [4]uint16{'*', 0xb5 /*µ*/, 0, 0}}, // KEY_BACKSLASH
 }
 
 // frMacAzerty is the Apple MacBook French AZERTY layout — the
@@ -137,13 +137,13 @@ var frMacAzerty = []keymapEntry{
 	{12, [4]uint16{')', 0xb0 /*°*/, 0, 0}}, // KEY_MINUS
 	{13, [4]uint16{'-', '_', 0, 0}},        // KEY_EQUAL (Apple has - here, PC has =)
 	// Top letter row: QWER → AZER swap.
-	{16, [4]uint16{'a', 'A', 0, 0}}, // KEY_Q → a
-	{17, [4]uint16{'z', 'Z', 0, 0}}, // KEY_W → z
+	{16, [4]uint16{'a', 'A', 0, 0}},        // KEY_Q → a
+	{17, [4]uint16{'z', 'Z', 0, 0}},        // KEY_W → z
 	{26, [4]uint16{'^', 0xa8 /*¨*/, 0, 0}}, // KEY_LEFTBRACE
 	{27, [4]uint16{'$', '*', 0, 0}},        // KEY_RIGHTBRACE (Apple has $/*; PC is $/£)
 	// Home row: A → Q swap.
-	{30, [4]uint16{'q', 'Q', 0, 0}}, // KEY_A → q
-	{39, [4]uint16{'m', 'M', 0, 0}}, // KEY_SEMICOLON → m
+	{30, [4]uint16{'q', 'Q', 0, 0}},        // KEY_A → q
+	{39, [4]uint16{'m', 'M', 0, 0}},        // KEY_SEMICOLON → m
 	{40, [4]uint16{0xf9 /*ù*/, '%', 0, 0}}, // KEY_APOSTROPHE
 	{43, [4]uint16{'`', 0xa3 /*£*/, 0, 0}}, // KEY_BACKSLASH (Apple has backtick/pound; PC has */µ)
 	// Bottom letter row: Z → W swap, then the punctuation.

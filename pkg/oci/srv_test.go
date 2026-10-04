@@ -12,13 +12,13 @@ import (
 
 func TestIsSRVHost(t *testing.T) {
 	cases := map[string]bool{
-		"_oci._tcp.example.com":   true,
-		"_oci._udp.example.com":   true,
-		"oci.example.com":         false,
-		"_just-underscored":       false,
-		"_oci.example.com":        false, // missing _proto label
-		"127.0.0.1":               false,
-		"127.0.0.1:5000":          false,
+		"_oci._tcp.example.com": true,
+		"_oci._udp.example.com": true,
+		"oci.example.com":       false,
+		"_just-underscored":     false,
+		"_oci.example.com":      false, // missing _proto label
+		"127.0.0.1":             false,
+		"127.0.0.1:5000":        false,
 	}
 	for in, want := range cases {
 		if got := IsSRVHost(in); got != want {
