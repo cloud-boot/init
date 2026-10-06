@@ -3,13 +3,13 @@ module github.com/cloud-boot/init
 go 1.27.1
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20260929220925-afcec38b9e2e
-	github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb
-	github.com/go-filesystems/btrfs v0.1.0
-	github.com/go-filesystems/ext4 v0.2.0
-	github.com/go-filesystems/interface v0.3.0
-	github.com/go-filesystems/xfs v0.1.0
-	github.com/go-filesystems/zfs v0.1.0
+	github.com/go-bootloaders/systemd-boot v0.0.0-20261005013139-25627324237e
+	github.com/go-fde/luks v0.0.0-20261004230658-44055bc8553a
+	github.com/go-filesystems/btrfs v0.3.0
+	github.com/go-filesystems/ext4 v0.3.0
+	github.com/go-filesystems/interface v0.4.0
+	github.com/go-filesystems/xfs v0.3.0
+	github.com/go-filesystems/zfs v0.3.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/insomniacslk/dhcp v0.0.0-20260901064844-234b97448fae
 	github.com/klauspost/compress v1.20.1
@@ -23,12 +23,12 @@ require (
 
 require (
 	github.com/agext/levenshtein v1.2.1 // indirect
-	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/anchore/go-lzo v0.1.1 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
-	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
+	github.com/go-encryptions/ccm v0.0.0-20260927083542-1713f748107c // indirect
 	github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 // indirect
-	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
+	github.com/go-encryptions/zfscrypt v0.0.0-20260927173133-ff7dd33bb415 // indirect
 	github.com/go-filesystems/detect v0.1.0 // indirect
 	github.com/go-filesystems/detect/fat32reg v0.0.0-20260924074345-06b9ae35d98d // indirect
 	github.com/go-filesystems/fat32 v0.4.0 // indirect
