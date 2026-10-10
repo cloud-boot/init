@@ -1,6 +1,6 @@
 module github.com/cloud-boot/init
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/go-bootloaders/systemd-boot v0.0.0-20261005013139-25627324237e
@@ -17,7 +17,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/zclconf/go-cty v1.19.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/sys v0.48.0
 )
 
