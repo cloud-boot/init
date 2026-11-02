@@ -3,13 +3,13 @@ module github.com/cloud-boot/init
 go 1.27.2
 
 require (
-	github.com/go-bootloaders/systemd-boot v0.0.0-20261013003044-2cde9bfc1dc1
+	github.com/go-bootloaders/systemd-boot v0.0.0-20261031233946-5b7cf0e3ba50
 	github.com/go-fde/luks v0.2.0
-	github.com/go-filesystems/btrfs v0.3.0
-	github.com/go-filesystems/ext4 v0.3.0
+	github.com/go-filesystems/btrfs v0.4.0
+	github.com/go-filesystems/ext4 v0.4.0
 	github.com/go-filesystems/interface v0.5.0
-	github.com/go-filesystems/xfs v0.3.0
-	github.com/go-filesystems/zfs v0.3.0
+	github.com/go-filesystems/xfs v0.4.0
+	github.com/go-filesystems/zfs v0.4.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/insomniacslk/dhcp v0.0.0-20261014062924-c6bb46ad3f3a
 	github.com/klauspost/compress v1.20.3
@@ -26,9 +26,9 @@ require (
 	github.com/anchore/go-lzo v0.1.1 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
-	github.com/go-encryptions/ccm v0.0.0-20260927083542-1713f748107c // indirect
+	github.com/go-encryptions/ccm v0.0.0-20261024084551-8f94ab359209 // indirect
 	github.com/go-encryptions/xts v0.0.0-20261012185738-047ae186ad23 // indirect
-	github.com/go-encryptions/zfscrypt v0.0.0-20260927173133-ff7dd33bb415 // indirect
+	github.com/go-encryptions/zfscrypt v0.0.0-20261025134207-eb78902b14ac // indirect
 	github.com/go-filesystems/detect v0.3.0 // indirect
 	github.com/go-filesystems/detect/fat32reg v0.0.0-20261011160818-a3a3c4a1d5c8 // indirect
 	github.com/go-filesystems/fat32 v0.5.0 // indirect
